@@ -17,9 +17,16 @@ enum class VALUE_TYPE : uint8_t
     MAP,
 };
 
+struct VariantFlags
+{
+    uint8_t is_const : 1;
+};
+
 struct Variant
 {
     VALUE_TYPE type;
+    VariantFlags flags;
+
     union
     {
         uint8_t d8;
@@ -34,8 +41,9 @@ typedef std::string VarString;
 typedef std::vector<Variant> VarArray;
 typedef std::unordered_map<std::string, Variant> VarMap;
 
-Error MakeVariant(Variant &var, const Token::Token &value)
+Error MakeVariant(Variant &var, const Token::Token &value, bool make_const = false)
 {
+    var.flags.is_const = make_const;
     switch (value.type)
     {
     case Token::STRING:

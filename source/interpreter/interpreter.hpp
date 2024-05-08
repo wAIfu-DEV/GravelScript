@@ -162,7 +162,9 @@ namespace Interpreter
             {
                 Variant *v = nullptr;
                 Helper::PairVectorGet(scope.args, key, &v);
-                Instructions::Set(*v, args[i]);
+                Error set_err = Instructions::Set(*v, args[i], false);
+                if (set_err)
+                    return set_err;
             }
             ++i;
         }
@@ -173,10 +175,14 @@ namespace Interpreter
     {
         switch (inst.type)
         {
+        case Token::KEYW_CONST:
         case Token::KEYW_SET:
         {
             Token::Token &varname = inst.args.at(1);
             Token::Token &value = inst.args.at(3);
+
+            bool is_const = inst.type == Token::KEYW_CONST;
+            bool no_override = is_const;
 
             Logger::Debug("SET", {varname.content, value.content});
 
@@ -184,15 +190,29 @@ namespace Interpreter
             {
                 if (Helper::UnorderedMapHasKey(parent_scope.vars, varname.content))
                 {
-                    Instructions::Set(parent_scope.vars.at(varname.content), value);
+                    if (no_override)
+                    {
+                        Logger::Error("Syntax Error: variable", {varname.content, "already exists in scope", parent_scope.name});
+                        return Error::SYNTAX;
+                    }
+                    Error set_err = Instructions::Set(parent_scope.vars.at(varname.content), value, is_const);
+                    if (set_err)
+                        return set_err;
                     return Error::OK;
                 }
                 else if (parent_scope.type == SCOPE_TYPE::FUNC &&
                          Helper::PairVectorHasKey(parent_scope.args, varname.content))
                 {
+                    if (no_override)
+                    {
+                        Logger::Error("Syntax Error: variable", {varname.content, "already exists as an argument of", parent_scope.name});
+                        return Error::SYNTAX;
+                    }
                     Variant *v = nullptr;
                     Helper::PairVectorGet(parent_scope.args, varname.content, &v);
-                    Instructions::Set(*v, value);
+                    Error set_err = Instructions::Set(*v, value, is_const);
+                    if (set_err)
+                        return set_err;
                     return Error::OK;
                 }
 
@@ -202,7 +222,14 @@ namespace Interpreter
                 {
                     if (Helper::UnorderedMapHasKey(next_parent_scope->vars, varname.content))
                     {
-                        Instructions::Set(next_parent_scope->vars.at(varname.content), value);
+                        if (no_override)
+                        {
+                            Logger::Error("Syntax Error: variable", {varname.content, "already exists in scope", next_parent_scope->name});
+                            return Error::SYNTAX;
+                        }
+                        Error set_err = Instructions::Set(next_parent_scope->vars.at(varname.content), value, is_const);
+                        if (set_err)
+                            return set_err;
                         return Error::OK;
                     }
                     next_parent_scope = next_parent_scope->parent;
@@ -212,7 +239,9 @@ namespace Interpreter
                     .type = VALUE_TYPE::NIL,
                     .d64 = 0,
                 };
-                Instructions::Set(v, value);
+                Error set_err = Instructions::Set(v, value, is_const);
+                if (set_err)
+                    return set_err;
                 parent_scope.vars.insert({varname.content, v});
                 return Error::OK;
             }
@@ -259,14 +288,28 @@ namespace Interpreter
                     }
                     else if (Helper::UnorderedMapHasKey(scope->vars, scope_name))
                     {
-                        Instructions::Set(scope->vars.at(scope_name), value);
+                        if (no_override)
+                        {
+                            Logger::Error("Syntax Error: variable", {varname.content, "already exists in scope", scope->name});
+                            return Error::SYNTAX;
+                        }
+                        Error set_err = Instructions::Set(scope->vars.at(scope_name), value, is_const);
+                        if (set_err)
+                            return set_err;
                         return Error::OK;
                     }
                     else if (Helper::PairVectorHasKey(scope->args, scope_name))
                     {
+                        if (no_override)
+                        {
+                            Logger::Error("Syntax Error: variable", {varname.content, "already exists in scope", scope->name});
+                            return Error::SYNTAX;
+                        }
                         Variant *v = nullptr;
                         Helper::PairVectorGet(scope->args, scope_name, &v);
-                        Instructions::Set(*v, value);
+                        Error set_err = Instructions::Set(*v, value, is_const);
+                        if (set_err)
+                            return set_err;
                         return Error::OK;
                     }
 
@@ -274,7 +317,9 @@ namespace Interpreter
                         .type = VALUE_TYPE::NIL,
                         .d64 = 0,
                     };
-                    Instructions::Set(v, value);
+                    Error set_err = Instructions::Set(v, value, is_const);
+                    if (set_err)
+                        return set_err;
                     scope->vars.insert({scope_name, v});
                     return Error::OK;
                 }

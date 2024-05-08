@@ -39,6 +39,22 @@ namespace Parser
             scope_stack.back()->instructions.push_back(inst);
             break;
         }
+        case Token::KEYW_CONST:
+        {
+            if (inst_size < 3)
+            {
+                Logger::Error("Syntax Error: 'const' instruction requires 2 arguments.", {});
+                return Error::SYNTAX;
+            }
+            Instruction inst = {
+                .type = Token::KEYW_CONST,
+                .args = {},
+            };
+            for (const Token::Token &tok : tokens)
+                inst.args.push_back(tok);
+            scope_stack.back()->instructions.push_back(inst);
+            break;
+        }
         case Token::KEYW_CALL:
         {
             if (inst_size < 2)

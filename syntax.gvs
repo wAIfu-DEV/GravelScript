@@ -5,13 +5,13 @@
 import "imported.gvs", imported;
 
 set retval, 0;
-set HELLO, "Hello, World!";
+const HELLO, "Hello, World!";
 
 // Custom class with member and method
 namespace Program;
-    set ESCAPE_TEST, "\"\'\`//";
-    set INTTEST, 84592;
-    set FLOATTEST, 84592.05;
+    const ESCAPE_TEST, "\"\'\`//";
+    const INTTEST, 84592;
+    const FLOATTEST, 84592.05;
 
     set changeme, "";
 
@@ -26,6 +26,7 @@ end;
 func main;
     set TESTVAR, 0;
     set Program.changeme, "NEW VALUE";
+    //set HELLO, "wrong value";
     call Program.MyMain, 0, HELLO, 0;
     call Print, retval;
     call imported.FuncFromOtherFile;

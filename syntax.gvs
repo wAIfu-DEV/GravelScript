@@ -1,0 +1,22 @@
+// Import standard lib as std
+import "std", std;
+
+set HELLO, "Hello, World!";
+
+// Custom class with member and method
+namespace Program;
+    set ESCAPE_TEST, "\"\'\`//";
+    set INTTEST, 84592;
+    set FLOATTEST, 84592.05;
+
+    func MyMain, arg0, arg1, arg2;
+        call Print, arg1; // Print is builtin
+    end;
+end;
+
+// Main function
+func main;
+    set TESTVAR, 0;
+    call Program.MyMain, 0, HELLO, 0;
+    return 0;
+end;

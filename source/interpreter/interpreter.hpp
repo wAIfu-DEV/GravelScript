@@ -19,7 +19,7 @@ namespace Interpreter
     Error ExecuteScope(Scope &scope, Scope &global_scope);
     Error RecursiveScopeExecutor(Scope *current_scope, Scope &global_scope);
 
-    Variant ResolveName(Token::Token varname, Scope &parent_scope, Scope &global_scope)
+    Variant ResolveName(Token::Token varname, Scope &parent_scope, [[maybe_unused]] Scope &global_scope)
     {
         if (!Helper::StringContains(varname.content, '.'))
         {
@@ -27,15 +27,23 @@ namespace Interpreter
             {
                 return parent_scope.vars.at(varname.content);
             }
-            else if (Helper::PairVectorHasKey(parent_scope.args, varname.content))
+            else if (parent_scope.type == SCOPE_TYPE::FUNC &&
+                     Helper::PairVectorHasKey(parent_scope.args, varname.content))
             {
                 Variant *v = nullptr;
                 Helper::PairVectorGet(parent_scope.args, varname.content, &v);
                 return *v;
             }
-            else if (Helper::UnorderedMapHasKey(global_scope.vars, varname.content))
+
+            // Recursive scope walking
+            Scope *next_parent_scope = parent_scope.parent;
+            while (next_parent_scope)
             {
-                return global_scope.vars.at(varname.content);
+                if (Helper::UnorderedMapHasKey(next_parent_scope->vars, varname.content))
+                {
+                    return next_parent_scope->vars.at(varname.content);
+                }
+                next_parent_scope = next_parent_scope->parent;
             }
 
             Variant v = {
@@ -48,23 +56,39 @@ namespace Interpreter
         {
             std::vector<std::string> scopes = Helper::SplitString(varname.content, '.');
 
-            Scope *scope;
+            Scope *scope = nullptr;
             if (Helper::UnorderedMapHasKey(parent_scope.scopes, scopes.at(0)))
             {
                 scope = &parent_scope;
             }
+            /*
             else if (Helper::UnorderedMapHasKey(global_scope.scopes, scopes.at(0)))
             {
                 scope = &global_scope;
-            }
+            }*/
             else
             {
-                Logger::Error("Syntax Error: could not find scope", {scopes.at(0)});
-                Variant v = {
-                    .type = VALUE_TYPE::NIL,
-                    .d64 = 0,
-                };
-                return v;
+                // Recursive scope walking
+                Scope *next_parent_scope = parent_scope.parent;
+                while (next_parent_scope)
+                {
+                    if (Helper::UnorderedMapHasKey(next_parent_scope->scopes, scopes.at(0)))
+                    {
+                        scope = next_parent_scope;
+                        break;
+                    }
+                    next_parent_scope = next_parent_scope->parent;
+                }
+
+                if (!scope)
+                {
+                    Logger::Error("Syntax Error: could not find scope", {scopes.at(0)});
+                    Variant v = {
+                        .type = VALUE_TYPE::NIL,
+                        .d64 = 0,
+                    };
+                    return v;
+                }
             }
 
             for (std::string scope_name : scopes)
@@ -163,17 +187,25 @@ namespace Interpreter
                     Instructions::Set(parent_scope.vars.at(varname.content), value);
                     return Error::OK;
                 }
-                else if (Helper::PairVectorHasKey(parent_scope.args, varname.content))
+                else if (parent_scope.type == SCOPE_TYPE::FUNC &&
+                         Helper::PairVectorHasKey(parent_scope.args, varname.content))
                 {
                     Variant *v = nullptr;
                     Helper::PairVectorGet(parent_scope.args, varname.content, &v);
                     Instructions::Set(*v, value);
                     return Error::OK;
                 }
-                else if (Helper::UnorderedMapHasKey(global_scope.vars, varname.content))
+
+                // Recursive scope walking
+                Scope *next_parent_scope = parent_scope.parent;
+                while (next_parent_scope)
                 {
-                    Instructions::Set(global_scope.vars.at(varname.content), value);
-                    return Error::OK;
+                    if (Helper::UnorderedMapHasKey(next_parent_scope->vars, varname.content))
+                    {
+                        Instructions::Set(next_parent_scope->vars.at(varname.content), value);
+                        return Error::OK;
+                    }
+                    next_parent_scope = next_parent_scope->parent;
                 }
 
                 Variant v = {
@@ -188,7 +220,7 @@ namespace Interpreter
             {
                 std::vector<std::string> scopes = Helper::SplitString(varname.content, '.');
 
-                Scope *scope;
+                Scope *scope = nullptr;
                 if (Helper::UnorderedMapHasKey(parent_scope.scopes, scopes.at(0)))
                 {
                     scope = &parent_scope;
@@ -199,8 +231,23 @@ namespace Interpreter
                 }
                 else
                 {
-                    Logger::Error("Syntax Error: could not find scope", {scopes.at(0)});
-                    return Error::SYNTAX;
+                    // Recursive scope walking
+                    Scope *next_parent_scope = parent_scope.parent;
+                    while (next_parent_scope)
+                    {
+                        if (Helper::UnorderedMapHasKey(next_parent_scope->scopes, scopes.at(0)))
+                        {
+                            scope = next_parent_scope;
+                            break;
+                        }
+                        next_parent_scope = next_parent_scope->parent;
+                    }
+
+                    if (!scope)
+                    {
+                        Logger::Error("Syntax Error: could not find scope", {scopes.at(0)});
+                        return Error::SYNTAX;
+                    }
                 }
 
                 for (std::string scope_name : scopes)
@@ -391,6 +438,7 @@ namespace Interpreter
 
             global_scope.scopes.insert_or_assign(alias.content, Scope{
                                                                     .type = SCOPE_TYPE::GLOBAL,
+                                                                    .parent = &global_scope,
                                                                     .args = {},
                                                                     .vars = {},
                                                                     .scopes = {},

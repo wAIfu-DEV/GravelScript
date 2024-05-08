@@ -18,6 +18,7 @@ enum class SCOPE_TYPE : uint8_t
 struct Scope
 {
     SCOPE_TYPE type;
+    Scope *parent;
     std::string name;
     std::vector<std::pair<std::string, Variant>> args;
     std::unordered_map<std::string, Variant> vars;

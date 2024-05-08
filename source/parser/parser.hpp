@@ -97,6 +97,7 @@ namespace Parser
                 ->scopes
                 .insert({tokens.at(1).content, Scope{
                                                    .type = SCOPE_TYPE::CLASS,
+                                                   .parent = scope_stack.back(),
                                                    .name = tokens.at(1).content,
                                                    .args = {},
                                                    .vars = {},
@@ -121,6 +122,7 @@ namespace Parser
                 ->scopes
                 .insert({tokens.at(1).content, Scope{
                                                    .type = SCOPE_TYPE::NAMESPACE,
+                                                   .parent = scope_stack.back(),
                                                    .name = tokens.at(1).content,
                                                    .args = {},
                                                    .vars = {},
@@ -147,6 +149,7 @@ namespace Parser
                 .insert({tokens.at(1).content,
                          Scope{
                              .type = SCOPE_TYPE::FUNC,
+                             .parent = scope_stack.back(),
                              .name = tokens.at(1).content,
                              .args = {},
                              .vars = {},

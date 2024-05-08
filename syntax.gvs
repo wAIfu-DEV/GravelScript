@@ -17,7 +17,7 @@ namespace Program;
 
     func MyMain, arg0, arg1, arg2;
         call Print, arg1; // Print is builtin
-        call Print, Program.changeme;
+        call Print, changeme;
         set retval, "RESULT FROM MyMain";
     end;
 end;

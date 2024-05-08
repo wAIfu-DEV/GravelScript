@@ -18,6 +18,4 @@ ECHO Testing build . . .
 
 %ROOT_PATH%/%DIST_WIN%/gvs.exe "syntax.gvs"
 
-@ECHO OFF
-
 PAUSE

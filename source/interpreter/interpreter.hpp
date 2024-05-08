@@ -1,6 +1,7 @@
 #pragma once
 
 #include <iostream>
+#include <filesystem>
 
 #include "../logger/logger.hpp"
 #include "../helper/helper.hpp"
@@ -16,6 +17,7 @@
 namespace Interpreter
 {
     Error ExecuteScope(Scope &scope, Scope &global_scope);
+    Error RecursiveScopeExecutor(Scope *current_scope, Scope &global_scope);
 
     Variant ResolveName(Token::Token varname, Scope &parent_scope, Scope &global_scope)
     {
@@ -348,6 +350,65 @@ namespace Interpreter
                 Logger::Error("Syntax Error: failed to find function:", {funcname.content});
                 return Error::SYNTAX;
             }
+        }
+        case Token::KEYW_IMPORT:
+        {
+            namespace fs = std::filesystem;
+
+            Token::Token &path = inst.args.at(1);
+            Token::Token &alias = inst.args.at(3);
+
+            Logger::Debug("IMPORT", {path.content, alias.content});
+
+            if (path.type != Token::STRING)
+            {
+                Logger::Error("Syntax Error: first argument of 'import' must be of type string.", {});
+                return Error::SYNTAX;
+            }
+            if (alias.type != Token::NAME)
+            {
+                Logger::Error("Syntax Error: second argument of 'import' must be a name.", {});
+                return Error::SYNTAX;
+            }
+
+            fs::path abs_path;
+            try
+            {
+                abs_path = fs::canonical(path.content);
+                Logger::Debug("Found importable file at path:", {path.content});
+            }
+            catch ([[maybe_unused]] const std::exception &e)
+            {
+                Logger::Error("Path used in 'import' instruction could not be resolve:", {path.content});
+                return Error::REJECTED;
+            }
+
+            std::vector<Token::Token> tokens{};
+
+            Error lex_err = Script::LexFile(abs_path.string(), tokens);
+            if (lex_err)
+                return lex_err;
+
+            global_scope.scopes.insert_or_assign(alias.content, Scope{
+                                                                    .type = SCOPE_TYPE::GLOBAL,
+                                                                    .args = {},
+                                                                    .vars = {},
+                                                                    .scopes = {},
+                                                                });
+            Scope &imported_global = global_scope.scopes.at(alias.content);
+
+            Error parse_err = Parser::ParseTokens(tokens, imported_global);
+            if (parse_err)
+                return parse_err;
+
+            Error exe_err = ExecuteScope(imported_global, imported_global);
+            if (exe_err)
+                return exe_err;
+
+            Scope *recursion_scope = &imported_global;
+            Error scope_exe_err = RecursiveScopeExecutor(recursion_scope, imported_global);
+            if (scope_exe_err)
+                return scope_exe_err;
         }
         default:
             break;

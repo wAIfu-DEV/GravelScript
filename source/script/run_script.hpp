@@ -17,13 +17,14 @@ namespace Script
     Error RunFile(const std::string &script_path)
     {
         std::vector<Token::Token> tokens{};
+
         Error lex_err = Script::LexFile(script_path, tokens);
         if (lex_err)
             return lex_err;
 
+#if !GVS_RELEASE
         Logger::Debug("Tokens size:", {std::to_string(tokens.size())});
 
-#if GVS_RELEASE == 0
         for (Token::Token t : tokens)
         {
             std::cout << t.content << ((t.type == Token::SEMI_COLON) ? "\n" : " ");
@@ -31,7 +32,7 @@ namespace Script
         std::cout << "\n";
 #endif
 
-        Scope global = {
+        Scope global{
             .type = SCOPE_TYPE::GLOBAL,
             .args = {},
             .vars = {},

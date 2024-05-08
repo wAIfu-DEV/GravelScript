@@ -167,6 +167,27 @@ namespace Parser
             }
             break;
         }
+        case Token::KEYW_IMPORT:
+        {
+            if (inst_size < 3)
+            {
+                Logger::Error("Syntax Error: 'import' instruction requires 2 arguments 'path' and 'alias'.", {});
+                return Error::SYNTAX;
+            }
+            if (scope_stack.back()->type != SCOPE_TYPE::GLOBAL)
+            {
+                Logger::Error("Syntax Error: cannot import outside of the global scope.", {});
+                return Error::SYNTAX;
+            }
+            Instruction inst = {
+                .type = Token::KEYW_IMPORT,
+                .args = {},
+            };
+            for (const Token::Token &tok : tokens)
+                inst.args.push_back(tok);
+            scope_stack.back()->instructions.push_back(inst);
+            break;
+        }
         default:
             break;
         }

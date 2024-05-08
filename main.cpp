@@ -18,7 +18,7 @@ int32_t ManagedMain(const int32_t argc, char *argv[])
 
     if (Router::RouteBasedOnArguments())
     {
-        Logger::Error("Failed to parse arguments.", {});
+        Logger::Error("Terminated program due to error.", {});
         return 1;
     }
 
@@ -35,7 +35,7 @@ int32_t main(int32_t argc, char *argv[])
     catch (const std::exception &e)
     {
         std::cerr << e.what() << '\n';
-        Logger::Debug("Finished Program With Error.", {});
+        Logger::Debug("Terminated program due to interpreter error.", {});
         return 1;
     }
 }

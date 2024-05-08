@@ -1,6 +1,10 @@
 // Import standard lib as std
-import "std", std;
+// import "std", std;
 
+// Import other file 
+import "imported.gvs", imported;
+
+set retval, 0;
 set HELLO, "Hello, World!";
 
 // Custom class with member and method
@@ -9,14 +13,20 @@ namespace Program;
     set INTTEST, 84592;
     set FLOATTEST, 84592.05;
 
+    set changeme, "";
+
     func MyMain, arg0, arg1, arg2;
         call Print, arg1; // Print is builtin
+        call Print, Program.changeme;
+        set retval, "RESULT FROM MyMain";
     end;
 end;
 
 // Main function
 func main;
     set TESTVAR, 0;
+    set Program.changeme, "NEW VALUE";
     call Program.MyMain, 0, HELLO, 0;
-    return 0;
+    call Print, retval;
+    call imported.FuncFromOtherFile;
 end;

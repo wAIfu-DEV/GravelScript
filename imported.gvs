@@ -1,0 +1,4 @@
+
+func FuncFromOtherFile;
+    call Print, "Called a function from another file!";
+end;

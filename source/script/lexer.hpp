@@ -87,7 +87,7 @@ public:
     {
         std::string s = std::string(tok_buff.begin(), tok_buff.end());
 
-        if (s == "")
+        if (s == "" && type != Token::STRING)
             return;
 
         Token::Token t = {

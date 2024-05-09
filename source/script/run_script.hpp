@@ -35,6 +35,7 @@ namespace Script
         Scope global{
             .type = SCOPE_TYPE::GLOBAL,
             .parent = nullptr,
+            .name = "global",
             .args = {},
             .vars = {},
             .scopes = {},

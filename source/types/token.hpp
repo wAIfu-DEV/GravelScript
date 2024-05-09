@@ -27,6 +27,7 @@ namespace Token
         KEYW_END = 206,
         KEYW_NAMESPACE = 207,
         KEYW_CONST = 208,
+        KEYW_VAR = 209,
     };
 
     const std::map<TYPE, std::string> TYPE_TO_STR{
@@ -49,6 +50,7 @@ namespace Token
         {KEYW_END, "keyword-end"},
         {KEYW_NAMESPACE, "keyword-namespace"},
         {KEYW_CONST, "keyword-const"},
+        {KEYW_VAR, "keyword-var"},
     };
 
     struct Token

@@ -15,6 +15,7 @@ namespace GravelRules
         /* reserved word */
         {"set", Token::KEYW_SET},
         {"const", Token::KEYW_CONST},
+        {"var", Token::KEYW_VAR},
         {"call", Token::KEYW_CALL},
         {"class", Token::KEYW_CLASS},
         {"func", Token::KEYW_FUNC},

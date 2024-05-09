@@ -55,6 +55,22 @@ namespace Parser
             scope_stack.back()->instructions.push_back(inst);
             break;
         }
+        case Token::KEYW_VAR:
+        {
+            if (inst_size < 3)
+            {
+                Logger::Error("Syntax Error: 'var' instruction requires 2 arguments.", {});
+                return Error::SYNTAX;
+            }
+            Instruction inst = {
+                .type = Token::KEYW_VAR,
+                .args = {},
+            };
+            for (const Token::Token &tok : tokens)
+                inst.args.push_back(tok);
+            scope_stack.back()->instructions.push_back(inst);
+            break;
+        }
         case Token::KEYW_CALL:
         {
             if (inst_size < 2)
@@ -124,9 +140,10 @@ namespace Parser
         }
         case Token::KEYW_NAMESPACE:
         {
+            Logger::Debug("Parser: parsing namespace", {tokens.at(1).content});
             if (inst_size < 2)
             {
-                Logger::Error("Syntax Error: 'namespace' instruction requires at least 1 argument.", {});
+                Logger::Error("Syntax Error: 'namespace' instruction requires 1 argument.", {});
                 return Error::SYNTAX;
             }
             if (Helper::UnorderedMapHasKey(scope_stack.back()->scopes, tokens.at(1).content))
@@ -136,14 +153,14 @@ namespace Parser
             }
             scope_stack.back()
                 ->scopes
-                .insert({tokens.at(1).content, Scope{
-                                                   .type = SCOPE_TYPE::NAMESPACE,
-                                                   .parent = scope_stack.back(),
-                                                   .name = tokens.at(1).content,
-                                                   .args = {},
-                                                   .vars = {},
-                                                   .instructions = {},
-                                               }});
+                .emplace(std::make_pair(tokens.at(1).content, Scope{
+                                                                  .type = SCOPE_TYPE::NAMESPACE,
+                                                                  .parent = scope_stack.back(),
+                                                                  .name = std::string(tokens.at(1).content),
+                                                                  .args = {},
+                                                                  .vars = {},
+                                                                  .instructions = {},
+                                                              }));
             scope_stack.push_back(&scope_stack.back()->scopes.at(tokens.at(1).content));
             break;
         }
@@ -159,8 +176,7 @@ namespace Parser
                 Logger::Error("Syntax Error: member", {tokens.at(1).content, "already exists in scope."});
                 return Error::SYNTAX;
             }
-            scope_stack
-                .back()
+            scope_stack.back()
                 ->scopes
                 .insert({tokens.at(1).content,
                          Scope{
@@ -219,7 +235,7 @@ namespace Parser
 
         std::vector<Token::Token> inst_buffer = {};
 
-        std::vector<Scope *> scope_stack = {};
+        std::vector<Scope *> scope_stack{};
         scope_stack.push_back(&out_global);
 
         for (Token::Token tok : tokens)

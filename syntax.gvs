@@ -4,30 +4,31 @@
 // Import other file 
 import "imported.gvs", imported;
 
-set retval, 0;
+var retVal, 0;
 const HELLO, "Hello, World!";
 
 // Custom class with member and method
 namespace Program;
     const ESCAPE_TEST, "\"\'\`//";
-    const INTTEST, 84592;
-    const FLOATTEST, 84592.05;
+    const INT_TEST, 84592;
+    const FLOAT_TEST, 84592.05;
 
-    set changeme, "";
+    var changeMe, "";
 
     func MyMain, arg0, arg1, arg2;
-        call Print, arg1; // Print is builtin
-        call Print, changeme;
-        set retval, "RESULT FROM MyMain";
+        // Print is builtin
+        call Print, arg1;
+        call Print, changeMe;
+        set retVal, "RESULT FROM MyMain";
     end;
 end;
 
 // Main function
 func main;
-    set TESTVAR, 0;
-    set Program.changeme, "NEW VALUE";
-    //set HELLO, "wrong value";
+    const TEST_VAR, 0;
+    set Program.changeMe, "NEW VALUE";
+    // set HELLO, "causes error since is const";
     call Program.MyMain, 0, HELLO, 0;
-    call Print, retval;
+    call Print, retVal;
     call imported.FuncFromOtherFile;
 end;

@@ -17,9 +17,39 @@
 namespace Interpreter
 {
     Error ExecuteScope(Scope &scope, Scope &global_scope);
-    Error RecursiveScopeExecutor(Scope *current_scope, Scope &global_scope);
+    Error RecursiveScopeExecutor(Scope &current_scope, Scope &global_scope);
 
-    Variant ResolveName(Token::Token varname, Scope &parent_scope, [[maybe_unused]] Scope &global_scope)
+    void PrintTreeComposition(Scope &scope, size_t depth = 0)
+    {
+        std::string prefix;
+        for (size_t i = 0; i < depth; ++i)
+        {
+            prefix += "  ";
+        }
+
+        Logger::Debug(prefix + "Scope:", {scope.name});
+
+        Logger::Debug(prefix + "Args:", {});
+        for (auto &[key, val] : scope.args)
+        {
+            Logger::Debug(prefix + key, {});
+        }
+
+        Logger::Debug(prefix + "Vars:", {});
+        for (auto &[key, val] : scope.vars)
+        {
+            Logger::Debug(prefix + key, {});
+        }
+
+        Logger::Debug(prefix + "Scopes:", {});
+        for (auto &[key, val] : scope.scopes)
+        {
+            Logger::Debug(prefix + key, {});
+            PrintTreeComposition(val, depth + 1);
+        }
+    }
+
+    Variant ResolveName(Token::Token varname, Scope &parent_scope)
     {
         if (!Helper::StringContains(varname.content, '.'))
         {
@@ -91,7 +121,7 @@ namespace Interpreter
                 }
             }
 
-            for (std::string scope_name : scopes)
+            for (std::string &scope_name : scopes)
             {
                 if (Helper::UnorderedMapHasKey(scope->scopes, scope_name))
                 {
@@ -124,18 +154,8 @@ namespace Interpreter
         return v;
     }
 
-    Error SetArgumentsBeforeCall(Scope &scope, std::vector<Token::Token> &args, Scope &parent_scope, Scope &global_scope)
+    Error SetArgumentsBeforeCall(Scope &scope, std::vector<Token::Token> &args, Scope &parent_scope)
     {
-        for (Token::Token t : args)
-        {
-            Logger::Debug("ARG:", {t.content});
-        }
-
-        for (auto [key, val] : scope.args)
-        {
-            Logger::Debug("VARARG:", {key});
-        }
-
         if (args.size() > scope.args.size())
         {
             Logger::Error("Syntax Error: too many arguments for call to function", {scope.name});
@@ -149,13 +169,11 @@ namespace Interpreter
         }
 
         size_t i = 0;
-        for (auto [key, val] : scope.args)
+        for (auto &[key, val] : scope.args)
         {
-            Logger::Debug("ARGN:", {std::to_string(i), key, args[i].content});
             if (args[i].type == Token::NAME)
             {
-                Variant v = ResolveName(args[i], parent_scope, global_scope);
-                Logger::Debug("SET ARG WITH VALTYPE:", {std::to_string((uint8_t)v.type)});
+                Variant v = ResolveName(args[i], parent_scope);
                 scope.args[i].second = v;
             }
             else
@@ -173,21 +191,32 @@ namespace Interpreter
 
     Error ExecuteInstruction(Instruction &inst, Scope &parent_scope, Scope &global_scope)
     {
+        Logger::Debug("INST", {inst.args.at(0).content});
         switch (inst.type)
         {
+        case Token::KEYW_VAR:
         case Token::KEYW_CONST:
         case Token::KEYW_SET:
         {
+            if (inst.args.size() < 4)
+            {
+                Logger::Error("Syntax Error: not enough arguments for instruction set/var/const.", {});
+                return Error::SYNTAX;
+            }
+
             Token::Token &varname = inst.args.at(1);
             Token::Token &value = inst.args.at(3);
 
             bool is_const = inst.type == Token::KEYW_CONST;
-            bool no_override = is_const;
+            bool no_override = inst.type == Token::KEYW_CONST || inst.type == Token::KEYW_VAR;
+            bool create_new = inst.type != Token::KEYW_SET;
 
             Logger::Debug("SET", {varname.content, value.content});
 
             if (!Helper::StringContains(varname.content, '.'))
             {
+                Logger::Debug("setting:", {varname.content, "in scope:", parent_scope.name});
+
                 if (Helper::UnorderedMapHasKey(parent_scope.vars, varname.content))
                 {
                     if (no_override)
@@ -235,6 +264,12 @@ namespace Interpreter
                     next_parent_scope = next_parent_scope->parent;
                 }
 
+                if (!create_new)
+                {
+                    Logger::Error("Syntax Error: cannot set undeclared variable:", {varname.content});
+                    return Error::SYNTAX;
+                }
+
                 Variant v = {
                     .type = VALUE_TYPE::NIL,
                     .d64 = 0,
@@ -249,14 +284,15 @@ namespace Interpreter
             {
                 std::vector<std::string> scopes = Helper::SplitString(varname.content, '.');
 
+                for (std::string &s : scopes)
+                {
+                    Logger::Debug("COMPOSITE:", {s});
+                }
+
                 Scope *scope = nullptr;
                 if (Helper::UnorderedMapHasKey(parent_scope.scopes, scopes.at(0)))
                 {
                     scope = &parent_scope;
-                }
-                else if (Helper::UnorderedMapHasKey(global_scope.scopes, scopes.at(0)))
-                {
-                    scope = &global_scope;
                 }
                 else
                 {
@@ -279,7 +315,7 @@ namespace Interpreter
                     }
                 }
 
-                for (std::string scope_name : scopes)
+                for (std::string &scope_name : scopes)
                 {
                     if (Helper::UnorderedMapHasKey(scope->scopes, scope_name))
                     {
@@ -298,7 +334,7 @@ namespace Interpreter
                             return set_err;
                         return Error::OK;
                     }
-                    else if (Helper::PairVectorHasKey(scope->args, scope_name))
+                    else if (scope->type == SCOPE_TYPE::FUNC && Helper::PairVectorHasKey(scope->args, scope_name))
                     {
                         if (no_override)
                         {
@@ -311,6 +347,18 @@ namespace Interpreter
                         if (set_err)
                             return set_err;
                         return Error::OK;
+                    }
+
+                    Logger::Debug("Failed to find name:", {scope_name, "in scope:", scope->name});
+
+#if !GVS_RELEASE
+                    PrintTreeComposition(global_scope);
+#endif
+
+                    if (!create_new)
+                    {
+                        Logger::Error("Syntax Error: cannot set undeclared variable:", {varname.content});
+                        return Error::SYNTAX;
                     }
 
                     Variant v = {
@@ -332,7 +380,6 @@ namespace Interpreter
             std::vector<Token::Token> args = {};
             for (size_t i = 3; i < inst.args.size(); ++i)
             {
-                Logger::Debug("CALLARG:", {inst.args[i].content});
                 if (inst.args[i].type != Token::COMMA)
                     args.push_back(inst.args[i]);
             }
@@ -344,7 +391,7 @@ namespace Interpreter
                 if (Helper::UnorderedMapHasKey(parent_scope.scopes, funcname.content))
                 {
                     Scope &func = parent_scope.scopes.at(funcname.content);
-                    Error arg_err = SetArgumentsBeforeCall(func, args, parent_scope, global_scope);
+                    Error arg_err = SetArgumentsBeforeCall(func, args, parent_scope);
                     if (arg_err)
                         return arg_err;
                     Error exec_err = ExecuteScope(func, global_scope);
@@ -362,7 +409,7 @@ namespace Interpreter
                         return Error::SYNTAX;
                     }
 
-                    Error arg_err = SetArgumentsBeforeCall(func, args, parent_scope, global_scope);
+                    Error arg_err = SetArgumentsBeforeCall(func, args, parent_scope);
                     if (arg_err)
                         return arg_err;
                     Error exec_err = ExecuteScope(func, global_scope);
@@ -373,12 +420,12 @@ namespace Interpreter
                 else if (BuiltinFuncs::IsBuiltIn(funcname.content))
                 {
                     std::vector<Variant> varargs = {};
-                    for (Token::Token tok : args)
+                    for (Token::Token &tok : args)
                     {
                         Variant v;
                         if (tok.type == Token::NAME)
                         {
-                            v = ResolveName(tok, parent_scope, global_scope);
+                            v = ResolveName(tok, parent_scope);
                         }
                         else
                         {
@@ -416,7 +463,7 @@ namespace Interpreter
                     return Error::SYNTAX;
                 }
 
-                for (std::string scope_name : scopes)
+                for (std::string &scope_name : scopes)
                 {
                     Logger::Debug("Searching in scope:", {scope_name});
 
@@ -430,7 +477,7 @@ namespace Interpreter
                         }
                     }
 
-                    Error arg_err = SetArgumentsBeforeCall(*scope, args, parent_scope, global_scope);
+                    Error arg_err = SetArgumentsBeforeCall(*scope, args, parent_scope);
                     if (arg_err)
                         return arg_err;
                     Error exec_err = ExecuteScope(*scope, global_scope);
@@ -484,6 +531,7 @@ namespace Interpreter
             global_scope.scopes.insert_or_assign(alias.content, Scope{
                                                                     .type = SCOPE_TYPE::GLOBAL,
                                                                     .parent = &global_scope,
+                                                                    .name = std::string("#") + alias.content,
                                                                     .args = {},
                                                                     .vars = {},
                                                                     .scopes = {},
@@ -498,8 +546,7 @@ namespace Interpreter
             if (exe_err)
                 return exe_err;
 
-            Scope *recursion_scope = &imported_global;
-            Error scope_exe_err = RecursiveScopeExecutor(recursion_scope, imported_global);
+            Error scope_exe_err = RecursiveScopeExecutor(imported_global, imported_global);
             if (scope_exe_err)
                 return scope_exe_err;
         }
@@ -512,8 +559,9 @@ namespace Interpreter
 
     Error ExecuteScope(Scope &scope, Scope &global_scope)
     {
-        for (Instruction &inst : scope.instructions)
+        for (size_t i = 0; i < scope.instructions.size(); ++i)
         {
+            Instruction &inst = scope.instructions.at(i);
             Error inst_err = ExecuteInstruction(inst, scope, global_scope);
             if (inst_err)
                 return inst_err;
@@ -521,14 +569,19 @@ namespace Interpreter
         return Error::OK;
     }
 
-    Error RecursiveScopeExecutor(Scope *current_scope, Scope &global_scope)
+    Error RecursiveScopeExecutor(Scope &current_scope, Scope &global_scope)
     {
-        for (auto [key, val] : current_scope->scopes)
+        Logger::Debug("Recursing over scopes in:", {current_scope.name});
+        Error retval = Error::OK;
+        for (auto &[key, val] : current_scope.scopes)
         {
             if (val.type == SCOPE_TYPE::FUNC || val.type == SCOPE_TYPE::CLASS)
                 continue;
 
-            Logger::Debug("Executing scope:", {val.name});
+            if (val.name.starts_with("#"))
+                continue;
+
+            Logger::Debug("Executing scope:", {"key:", key, "name:", val.name});
             Error exe_err = ExecuteScope(val, global_scope);
             if (exe_err)
             {
@@ -536,8 +589,14 @@ namespace Interpreter
                 return exe_err;
             }
 
-            return RecursiveScopeExecutor(&val, global_scope);
+            retval = RecursiveScopeExecutor(val, global_scope);
+            if (retval)
+            {
+                Logger::Debug("Finished executing scope due to error.", {});
+                return retval;
+            }
         }
+        Logger::Debug("Finished executing scope:", {current_scope.name});
         return Error::OK;
     }
 
@@ -564,9 +623,10 @@ namespace Interpreter
         if (exe_err)
             return exe_err;
 
+        Logger::Debug("Scopes in global:", {std::to_string(global_scope.scopes.size())});
+
         Logger::Debug("Executing Nested Scopes.", {});
-        Scope *recursion_scope = &global_scope;
-        Error scope_exe_err = RecursiveScopeExecutor(recursion_scope, global_scope);
+        Error scope_exe_err = RecursiveScopeExecutor(global_scope, global_scope);
         if (scope_exe_err)
             return scope_exe_err;
 

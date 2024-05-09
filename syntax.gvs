@@ -7,7 +7,7 @@ import "imported.gvs", imported;
 var retVal, 0;
 const HELLO, "Hello, World!";
 
-// Custom class with member and method
+// namespace with member and method
 namespace Program;
     const ESCAPE_TEST, "\"\'\`//";
     const INT_TEST, 84592;

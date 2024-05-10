@@ -11,24 +11,39 @@ const HELLO, "Hello, World!";
 namespace Program;
     const ESCAPE_TEST, "\"\'\`//";
     const INT_TEST, 84592;
+    const INT_TEST2, -84592;
     const FLOAT_TEST, 84592.05;
 
     var changeMe, "";
 
+    namespace Nested;
+        var nestedMember, "lol";
+    end;
+
     func MyMain, arg0, arg1, arg2;
-        // Print is builtin
+        // Print is a builtin function
         call Print, arg1;
         call Print, changeMe;
+        call Print, Nested.nestedMember;
         set retVal, "RESULT FROM MyMain";
     end;
+end;
+
+func RecursionTest;
+    call Print, "RECURSION";
+    call RecursionTest;
 end;
 
 // Main function
 func main;
     const TEST_VAR, 0;
     set Program.changeMe, "NEW VALUE";
+    set Program.Nested.nestedMember, "lmao";
+
     // set HELLO, "causes error since is const";
     call Program.MyMain, 0, HELLO, 0;
     call Print, retVal;
     call imported.FuncFromOtherFile;
+    call Print, Program.Nested.nestedMember;
+    // call RecursionTest;
 end;

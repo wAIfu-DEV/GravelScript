@@ -228,13 +228,16 @@ public:
         }
 
         // Check if number
-        for (size_t i = 0; i < tok.length(); ++i)
+        if (isNumeric(tok[0]) || (tok[0] == '-'))
         {
-            if (!isNumeric(tok[i]) && !(tok[i] == '.'))
-                break;
-            if (i == tok.length() - 1)
+            for (size_t i = 0; i < tok.length(); ++i)
             {
-                return Token::NUMBER;
+                if (!isNumeric(tok[i]) && !(tok[i] == '.'))
+                    break;
+                if (i == tok.length() - 1)
+                {
+                    return Token::NUMBER;
+                }
             }
         }
 

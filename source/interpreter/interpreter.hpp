@@ -375,6 +375,12 @@ namespace Interpreter
         }
         case Token::KEYW_CALL:
         {
+            if (inst.args.size() < 1)
+            {
+                Logger::Error("Syntax Error: not enough arguments for instruction call.", {});
+                return Error::SYNTAX;
+            }
+
             Token::Token &funcname = inst.args.at(1);
 
             std::vector<Token::Token> args = {};
@@ -438,7 +444,8 @@ namespace Interpreter
                         }
                         varargs.push_back(v);
                     }
-                    BuiltinFuncs::CallBuiltIn(funcname.content, varargs);
+                    Variant return_val = BuiltinFuncs::CallBuiltIn(funcname.content, varargs);
+                    global_scope.vars.insert_or_assign("retVal", return_val);
                     return Error::OK;
                 }
                 Logger::Error("Syntax Error: could not find function", {funcname.content});
@@ -493,6 +500,12 @@ namespace Interpreter
         case Token::KEYW_IMPORT:
         {
             namespace fs = std::filesystem;
+
+            if (inst.args.size() < 4)
+            {
+                Logger::Error("Syntax Error: not enough arguments for instruction import.", {});
+                return Error::SYNTAX;
+            }
 
             Token::Token &path = inst.args.at(1);
             Token::Token &alias = inst.args.at(3);
@@ -549,6 +562,9 @@ namespace Interpreter
             Error scope_exe_err = RecursiveScopeExecutor(imported_global, imported_global);
             if (scope_exe_err)
                 return scope_exe_err;
+        }
+        case Token::KEYW_RETURN:
+        {
         }
         default:
             break;

@@ -1,4 +1,3 @@
-
 func FuncFromOtherFile;
     call Print, "Called a function defined in another file!";
 end;

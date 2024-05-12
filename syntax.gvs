@@ -45,21 +45,16 @@ func Main;
     set Program.changeMe, "NEW VALUE";
     set Program.Nested.nestedMember, "lmao";
 
-    call Print, "Hello", "World!", -845;
+    call Print, "Hello,", "World!", -845;
 
     var myInt, 50;
     var myFlt, 40.5;
 
-    call Add, myInt, myFlt, 25;
-    var newFlt, retVal;
+    // retVal refers to the return value of the latest function call
+    // defaults to null if no return statement in function
 
-    call ToString, newFlt;
-    call Print, retVal;
-
-    call Mul, newFlt, 2.0;
-    set newFlt, retVal;
-
-    call ToString, newFlt;
+    call Add, myInt, myFlt, 25; // 50 + 40.5 + 25
+    call Mul, retVal, 2.0; // 115.5 * 2.0
     call Print, retVal;
 
     // set HELLO, "causes error since is const";

@@ -4,8 +4,13 @@
 // Import other file 
 import "imported.gvs", imported;
 
-var retVal, 0;
 const HELLO, "Hello, World!";
+
+array myArray, 0, 1, 2, 3;
+
+//struct MyStruct;
+//    var structMember, 0;
+//end;
 
 // namespace with member and method
 namespace Program;
@@ -25,7 +30,7 @@ namespace Program;
         call Print, arg1;
         call Print, changeMe;
         call Print, Nested.nestedMember;
-        set retVal, "RESULT FROM MyMain";
+        return "RESULT FROM MyMain";
     end;
 end;
 
@@ -35,15 +40,36 @@ func RecursionTest;
 end;
 
 // Main function
-func main;
+func Main;
     const TEST_VAR, 0;
     set Program.changeMe, "NEW VALUE";
     set Program.Nested.nestedMember, "lmao";
+
+    call Print, "Hello", "World!", -845;
+
+    var myInt, 50;
+    var myFlt, 40.5;
+
+    call Add, myInt, myFlt, 25;
+    var newFlt, retVal;
+
+    call ToString, newFlt;
+    call Print, retVal;
+
+    call Mul, newFlt, 2.0;
+    set newFlt, retVal;
+
+    call ToString, newFlt;
+    call Print, retVal;
 
     // set HELLO, "causes error since is const";
     call Program.MyMain, 0, HELLO, 0;
     call Print, retVal;
     call imported.FuncFromOtherFile;
     call Print, Program.Nested.nestedMember;
+
+    return;
+
+    call Print, "won\'t happen";
     // call RecursionTest;
 end;

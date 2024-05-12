@@ -71,6 +71,22 @@ namespace Parser
             scope_stack.back()->instructions.push_back(inst);
             break;
         }
+        case Token::KEYW_ARRAY:
+        {
+            if (inst_size < 2)
+            {
+                Logger::Error("Syntax Error: 'array' instruction requires at least 1 arguments.", {});
+                return Error::SYNTAX;
+            }
+            Instruction inst = {
+                .type = Token::KEYW_ARRAY,
+                .args = {},
+            };
+            for (const Token::Token &tok : tokens)
+                inst.args.push_back(tok);
+            scope_stack.back()->instructions.push_back(inst);
+            break;
+        }
         case Token::KEYW_CALL:
         {
             if (inst_size < 2)
@@ -110,14 +126,31 @@ namespace Parser
                 Logger::Error("Syntax Error: cannot use the 'end' keyword while in global scope.", {});
                 return Error::SYNTAX;
             }
+
+            if (scope_stack.back()->type == SCOPE_TYPE::FUNC)
+            {
+                Token::Token ret_tok{
+                    .content = "return",
+                    .type = Token::KEYW_RETURN,
+                    .line = 0,
+                    .col = 0,
+                };
+
+                scope_stack.back()
+                    ->instructions.push_back(Instruction{
+                        .type = Token::KEYW_RETURN,
+                        .args = {ret_tok},
+                    });
+            }
+
             scope_stack.pop_back();
             break;
         }
-        case Token::KEYW_CLASS:
+        case Token::KEYW_STRUCT:
         {
             if (inst_size < 2)
             {
-                Logger::Error("Syntax Error: 'class' instruction requires at least 1 argument.", {});
+                Logger::Error("Syntax Error: 'struct' instruction requires at least 1 argument.", {});
                 return Error::SYNTAX;
             }
             if (Helper::UnorderedMapHasKey(scope_stack.back()->scopes, tokens.at(1).content))
@@ -168,7 +201,7 @@ namespace Parser
         {
             if (inst_size < 2)
             {
-                Logger::Error("Syntax Error: 'class' instruction requires at least 1 argument.", {});
+                Logger::Error("Syntax Error: 'func' instruction requires at least 1 argument.", {});
                 return Error::SYNTAX;
             }
             if (Helper::UnorderedMapHasKey(scope_stack.back()->scopes, tokens.at(1).content))

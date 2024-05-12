@@ -67,6 +67,7 @@
     "sstream": "cpp",
     "fstream": "cpp",
     "variant": "cpp",
-    "functional": "cpp"
+    "functional": "cpp",
+    "stdfloat": "cpp"
   }
 }

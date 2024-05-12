@@ -13,6 +13,7 @@
 #include "../types/scope.hpp"
 #include "../instructions/instructions.hpp"
 #include "../builtin/builtin_funcs.hpp"
+#include "../make_variant/make_variant.hpp"
 
 namespace Interpreter
 {
@@ -211,6 +212,18 @@ namespace Interpreter
             bool no_override = inst.type == Token::KEYW_CONST || inst.type == Token::KEYW_VAR;
             bool create_new = inst.type != Token::KEYW_SET;
 
+            Variant var_val{};
+            if (value.type == Token::NAME)
+            {
+                var_val = ResolveName(value, parent_scope);
+            }
+            else
+            {
+                Error make_err = MakeVariant(var_val, value, is_const);
+                if (make_err)
+                    return make_err;
+            }
+
             Logger::Debug("SET", {varname.content, value.content});
 
             if (!Helper::StringContains(varname.content, '.'))
@@ -224,9 +237,7 @@ namespace Interpreter
                         Logger::Error("Syntax Error: variable", {varname.content, "already exists in scope", parent_scope.name});
                         return Error::SYNTAX;
                     }
-                    Error set_err = Instructions::Set(parent_scope.vars.at(varname.content), value, is_const);
-                    if (set_err)
-                        return set_err;
+                    parent_scope.vars.insert_or_assign(varname.content, var_val);
                     return Error::OK;
                 }
                 else if (parent_scope.type == SCOPE_TYPE::FUNC &&
@@ -239,9 +250,7 @@ namespace Interpreter
                     }
                     Variant *v = nullptr;
                     Helper::PairVectorGet(parent_scope.args, varname.content, &v);
-                    Error set_err = Instructions::Set(*v, value, is_const);
-                    if (set_err)
-                        return set_err;
+                    *v = var_val;
                     return Error::OK;
                 }
 
@@ -256,9 +265,7 @@ namespace Interpreter
                             Logger::Error("Syntax Error: variable", {varname.content, "already exists in scope", next_parent_scope->name});
                             return Error::SYNTAX;
                         }
-                        Error set_err = Instructions::Set(next_parent_scope->vars.at(varname.content), value, is_const);
-                        if (set_err)
-                            return set_err;
+                        next_parent_scope->vars.insert_or_assign(varname.content, var_val);
                         return Error::OK;
                     }
                     next_parent_scope = next_parent_scope->parent;
@@ -270,14 +277,7 @@ namespace Interpreter
                     return Error::SYNTAX;
                 }
 
-                Variant v = {
-                    .type = VALUE_TYPE::NIL,
-                    .d64 = 0,
-                };
-                Error set_err = Instructions::Set(v, value, is_const);
-                if (set_err)
-                    return set_err;
-                parent_scope.vars.insert({varname.content, v});
+                parent_scope.vars.insert({varname.content, var_val});
                 return Error::OK;
             }
             else
@@ -329,9 +329,7 @@ namespace Interpreter
                             Logger::Error("Syntax Error: variable", {varname.content, "already exists in scope", scope->name});
                             return Error::SYNTAX;
                         }
-                        Error set_err = Instructions::Set(scope->vars.at(scope_name), value, is_const);
-                        if (set_err)
-                            return set_err;
+                        scope->vars.insert_or_assign(scope_name, var_val);
                         return Error::OK;
                     }
                     else if (scope->type == SCOPE_TYPE::FUNC && Helper::PairVectorHasKey(scope->args, scope_name))
@@ -343,9 +341,7 @@ namespace Interpreter
                         }
                         Variant *v = nullptr;
                         Helper::PairVectorGet(scope->args, scope_name, &v);
-                        Error set_err = Instructions::Set(*v, value, is_const);
-                        if (set_err)
-                            return set_err;
+                        *v = var_val;
                         return Error::OK;
                     }
 
@@ -361,17 +357,65 @@ namespace Interpreter
                         return Error::SYNTAX;
                     }
 
-                    Variant v = {
-                        .type = VALUE_TYPE::NIL,
-                        .d64 = 0,
-                    };
-                    Error set_err = Instructions::Set(v, value, is_const);
-                    if (set_err)
-                        return set_err;
-                    scope->vars.insert({scope_name, v});
+                    scope->vars.insert({scope_name, var_val});
                     return Error::OK;
                 }
             }
+        }
+        case Token::KEYW_ARRAY:
+        {
+            if (inst.args.size() < 2)
+            {
+                Logger::Error("Syntax Error: not enough arguments for instruction array.", {});
+                return Error::SYNTAX;
+            }
+
+            Token::Token &varname = inst.args.at(1);
+
+            Logger::Debug("setting:", {varname.content, "in scope:", parent_scope.name});
+
+            if (Helper::UnorderedMapHasKey(parent_scope.vars, varname.content))
+            {
+                Logger::Error("Syntax Error: variable", {varname.content, "already exists in scope", parent_scope.name});
+                return Error::SYNTAX;
+            }
+            else if (parent_scope.type == SCOPE_TYPE::FUNC &&
+                     Helper::PairVectorHasKey(parent_scope.args, varname.content))
+            {
+                Logger::Error("Syntax Error: variable", {varname.content, "already exists as an argument of", parent_scope.name});
+                return Error::SYNTAX;
+            }
+
+            // Recursive scope walking
+            Scope *next_parent_scope = parent_scope.parent;
+            while (next_parent_scope)
+            {
+                if (Helper::UnorderedMapHasKey(next_parent_scope->vars, varname.content))
+                {
+                    Logger::Error("Syntax Error: variable", {varname.content, "already exists in scope", next_parent_scope->name});
+                    return Error::SYNTAX;
+                }
+                next_parent_scope = next_parent_scope->parent;
+            }
+
+            std::vector<Token::Token> values{};
+
+            for (size_t i = 2; i < inst.args.size(); ++i)
+            {
+                Token::Token t = inst.args.at(i);
+                if (t.type != Token::COMMA)
+                    values.push_back(t);
+            }
+
+            Variant v = {
+                .type = VALUE_TYPE::NIL,
+                .d64 = 0,
+            };
+            Error make_err = MakeVarArray(v, values);
+            if (make_err)
+                return make_err;
+            parent_scope.vars.insert({varname.content, v});
+            return Error::OK;
         }
         case Token::KEYW_CALL:
         {
@@ -435,7 +479,7 @@ namespace Interpreter
                         }
                         else
                         {
-                            Error var_err = MakeVariant(v, tok);
+                            Error var_err = MakeVariant(v, {tok});
                             if (var_err)
                             {
                                 Logger::Error("Syntax Error: failed to make value from argument to function call", {funcname.content});
@@ -444,7 +488,10 @@ namespace Interpreter
                         }
                         varargs.push_back(v);
                     }
-                    Variant return_val = BuiltinFuncs::CallBuiltIn(funcname.content, varargs);
+                    bool builtin_error = false;
+                    Variant return_val = BuiltinFuncs::CallBuiltIn(funcname.content, varargs, builtin_error);
+                    if (builtin_error)
+                        return Error::UNHANDLED;
                     global_scope.vars.insert_or_assign("retVal", return_val);
                     return Error::OK;
                 }
@@ -562,12 +609,37 @@ namespace Interpreter
             Error scope_exe_err = RecursiveScopeExecutor(imported_global, imported_global);
             if (scope_exe_err)
                 return scope_exe_err;
+            return Error::OK;
         }
         case Token::KEYW_RETURN:
         {
+            Variant v{
+                .type = VALUE_TYPE::NIL,
+                .flags = {},
+                .d64 = 0,
+            };
+
+            if (inst.args.size() < 2)
+            {
+                global_scope.vars.insert_or_assign("retVal", v);
+                return Error::EARLY_RETURN;
+            }
+
+            Token::Token value = inst.args.at(1);
+
+            Error make_err = MakeVariant(v, value, false);
+            if (make_err)
+            {
+                Logger::Error("Could not make variant out of return value.", {});
+                return make_err;
+            }
+
+            global_scope.vars.insert_or_assign("retVal", v);
+            return Error::EARLY_RETURN;
         }
         default:
-            break;
+            Logger::Error("Syntax Error: Unexpected instruction:", {inst.args.at(0).content});
+            return Error::REJECTED;
         }
 
         return Error::OK;
@@ -579,6 +651,8 @@ namespace Interpreter
         {
             Instruction &inst = scope.instructions.at(i);
             Error inst_err = ExecuteInstruction(inst, scope, global_scope);
+            if (inst_err == Error::EARLY_RETURN)
+                return Error::OK;
             if (inst_err)
                 return inst_err;
         }
@@ -620,17 +694,24 @@ namespace Interpreter
     {
         Logger::Debug("Starting Interpretation...", {});
 
-        if (!Helper::UnorderedMapHasKey(global_scope.scopes, std::string{"main"}))
+        if (!Helper::UnorderedMapHasKey(global_scope.scopes, std::string{"Main"}))
         {
-            Logger::Error("Syntax Error: function 'main' not found in global scope.", {});
+            Logger::Error("Syntax Error: function 'Main' not found in global scope.", {});
             return Error::SYNTAX;
         }
 
-        Scope &main = global_scope.scopes.at("main");
+        Variant v{
+            .type = VALUE_TYPE::NIL,
+            .flags = {},
+            .d64 = 0,
+        };
+        global_scope.vars.insert_or_assign("retVal", v);
+
+        Scope &main = global_scope.scopes.at("Main");
 
         if (main.type != SCOPE_TYPE::FUNC)
         {
-            Logger::Error("Syntax Error: 'main' in global scope must be a function.", {});
+            Logger::Error("Syntax Error: 'Main' in global scope must be a function.", {});
             return Error::SYNTAX;
         }
 

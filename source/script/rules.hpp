@@ -16,12 +16,13 @@ namespace GravelRules
         {"set", Token::KEYW_SET},
         {"const", Token::KEYW_CONST},
         {"var", Token::KEYW_VAR},
+        {"array", Token::KEYW_ARRAY},
         {"call", Token::KEYW_CALL},
-        {"class", Token::KEYW_CLASS},
+        {"struct", Token::KEYW_STRUCT},
         {"func", Token::KEYW_FUNC},
         {"namespace", Token::KEYW_NAMESPACE},
         {"import", Token::KEYW_IMPORT},
-        {"ret", Token::KEYW_RETURN},
+        {"return", Token::KEYW_RETURN},
         {"end", Token::KEYW_END},
     };
 }

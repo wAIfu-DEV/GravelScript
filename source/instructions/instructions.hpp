@@ -6,6 +6,7 @@
 #include "../types/variant.hpp"
 
 #include "../memory/memory.hpp"
+#include "../make_variant/make_variant.hpp"
 #include "../helper/helper.hpp"
 
 namespace Instructions
@@ -19,7 +20,7 @@ namespace Instructions
             return Error::REJECTED;
         }
 
-        Error var_err = MakeVariant(var, value, create_as_const);
+        Error var_err = MakeVariant(var, {value}, create_as_const);
         if (var_err)
         {
             Logger::Error("Syntax Error: expected value as second argument of 'set', got:", {value.content});

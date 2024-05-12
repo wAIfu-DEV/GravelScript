@@ -20,7 +20,7 @@ namespace Token
         /* reserved names */
         KEYW_SET = 200,
         KEYW_CALL = 201,
-        KEYW_CLASS = 202,
+        KEYW_STRUCT = 202,
         KEYW_FUNC = 203,
         KEYW_IMPORT = 204,
         KEYW_RETURN = 205,
@@ -28,6 +28,7 @@ namespace Token
         KEYW_NAMESPACE = 207,
         KEYW_CONST = 208,
         KEYW_VAR = 209,
+        KEYW_ARRAY = 210,
     };
 
     const std::map<TYPE, std::string> TYPE_TO_STR{
@@ -43,7 +44,7 @@ namespace Token
 
         {KEYW_SET, "keyword-set"},
         {KEYW_CALL, "keyword-call"},
-        {KEYW_CLASS, "keyword-class"},
+        {KEYW_STRUCT, "keyword-struct"},
         {KEYW_FUNC, "keyword-func"},
         {KEYW_IMPORT, "keyword-import"},
         {KEYW_RETURN, "keyword-return"},
@@ -51,6 +52,7 @@ namespace Token
         {KEYW_NAMESPACE, "keyword-namespace"},
         {KEYW_CONST, "keyword-const"},
         {KEYW_VAR, "keyword-var"},
+        {KEYW_ARRAY, "keyword-array"},
     };
 
     struct Token

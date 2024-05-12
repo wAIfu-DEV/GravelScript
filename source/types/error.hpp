@@ -10,4 +10,5 @@ enum Error
     FORBIDDEN = 3,
     SYNTAX = 4,
     ASSERTION = 5,
+    EARLY_RETURN = 6,
 };

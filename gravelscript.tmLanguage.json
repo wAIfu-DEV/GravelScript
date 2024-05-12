@@ -1,0 +1,108 @@
+{
+    "$schema": "https://raw.githubusercontent.com/martinring/tmlanguage/master/tmlanguage.json",
+    "name": "GravelScript",
+    "scopeName": "source.gvs",
+    "patterns": [
+        {
+            "include": "#keywords"
+        },
+        {
+            "include": "#operators"
+        },
+        {
+            "include": "#types"
+        },
+        {
+            "include": "#number"
+        },
+        {
+            "include": "#space_name"
+        },
+        {
+            "include": "#function"
+        },
+        {
+            "include": "#variable"
+        },
+        {
+            "include": "#strings"
+        },
+        {
+            "include": "#comments"
+        }
+    ],
+    "repository": {
+        "keywords": {
+            "patterns": [
+                {
+                    "name": "keyword",
+                    "match": "\\b(set|var|const|call|func|namespace|struct|return|import|array|end)\\b"
+                }
+            ]
+        },
+        "operators": {
+            "patterns": [
+                {
+                    "name": "comment.comments",
+                    "match": "(?:[^\/])\/(?!\/)|(\\+|\\-|\\*|\\=|\\%|\\<|\\>|\\&|\\||\\;|\\.|\\,|\\.\\.|\\:)"
+                }
+            ]
+        },
+        "types": {
+            "patterns": [
+                {
+                    "name": "support.type",
+                    "match": "\\b(str|int|float|arr|map)\\b"
+                }
+            ]
+        },
+        "space_name": {
+            "patterns": [
+                {
+                    "name": "support.type",
+                    "match": "(?<=namespace)\\s+(\\w+)|retVal|null|(\\w+)(?=\\.)"
+                }
+            ]
+        },
+        "function": {
+            "patterns": [
+                {
+                    "name": "entity.name.function",
+                    "match": "(?<=func)\\s+(\\w+)|(?<=call\\s+(\\w+\\.)*)(\\w+)"
+                }
+            ]
+        },
+        "number": {
+            "patterns": [
+                {
+                    "name": "constant.numeric",
+                    "match": "\\b(\\.\\d+|\\d+)\\b"
+                }
+            ]
+        },
+        "variable": {
+            "patterns": [
+                {
+                    "name": "variable",
+                    "match": "\\w+"
+                }
+            ]
+        },
+        "strings": {
+            "name": "string.quoted.double",
+            "begin": "\"",
+            "end": "\"",
+            "patterns": [
+                {
+                    "name": "constant.character.escape",
+                    "match": "\\\\."
+                }
+            ]
+        },
+        "comments": {
+            "name": "comment.comments",
+            "begin": "//",
+            "end": "\\n"
+        }
+    }
+}

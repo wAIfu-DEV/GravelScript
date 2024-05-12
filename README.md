@@ -1,6 +1,6 @@
 # GravelScript
 
-```gravelscript
+```GravelScript
 func main;
     call Print, "Hello, World!";
 end;

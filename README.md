@@ -1,7 +1,7 @@
 # GravelScript
 
-```gravelscript
-func main;
+```GravelScript
+func Main;
     call Print, "Hello, World!";
 end;
 ```

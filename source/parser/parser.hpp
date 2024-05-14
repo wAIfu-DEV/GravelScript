@@ -163,6 +163,9 @@ namespace Parser
                 .insert({tokens.at(1).content, Scope{
                                                    .type = SCOPE_TYPE::CLASS,
                                                    .parent = scope_stack.back(),
+                                                   .runtime_vars = {
+                                                       .if_depth = 0,
+                                                   },
                                                    .name = tokens.at(1).content,
                                                    .args = {},
                                                    .vars = {},
@@ -189,6 +192,9 @@ namespace Parser
                 .emplace(std::make_pair(tokens.at(1).content, Scope{
                                                                   .type = SCOPE_TYPE::NAMESPACE,
                                                                   .parent = scope_stack.back(),
+                                                                  .runtime_vars = {
+                                                                      .if_depth = 0,
+                                                                  },
                                                                   .name = std::string(tokens.at(1).content),
                                                                   .args = {},
                                                                   .vars = {},
@@ -215,6 +221,9 @@ namespace Parser
                          Scope{
                              .type = SCOPE_TYPE::FUNC,
                              .parent = scope_stack.back(),
+                             .runtime_vars = {
+                                 .if_depth = 0,
+                             },
                              .name = tokens.at(1).content,
                              .args = {},
                              .vars = {},
@@ -249,6 +258,60 @@ namespace Parser
             }
             Instruction inst = {
                 .type = Token::KEYW_IMPORT,
+                .args = {},
+            };
+            for (const Token::Token &tok : tokens)
+                inst.args.push_back(tok);
+            scope_stack.back()->instructions.push_back(inst);
+            break;
+        }
+        case Token::KEYW_IF:
+        {
+            if (inst_size < 2)
+            {
+                Logger::Error("Syntax Error: 'if' instruction requires at least 1 argument.", {});
+                return Error::SYNTAX;
+            }
+            Instruction inst = {
+                .type = Token::KEYW_IF,
+                .args = {},
+            };
+            for (const Token::Token &tok : tokens)
+                inst.args.push_back(tok);
+            scope_stack.back()->instructions.push_back(inst);
+            break;
+        }
+        case Token::KEYW_ELIF:
+        {
+            if (inst_size < 2)
+            {
+                Logger::Error("Syntax Error: 'elif' instruction requires at least 1 argument.", {});
+                return Error::SYNTAX;
+            }
+            Instruction inst = {
+                .type = Token::KEYW_ELIF,
+                .args = {},
+            };
+            for (const Token::Token &tok : tokens)
+                inst.args.push_back(tok);
+            scope_stack.back()->instructions.push_back(inst);
+            break;
+        }
+        case Token::KEYW_ELSE:
+        {
+            Instruction inst = {
+                .type = Token::KEYW_ELSE,
+                .args = {},
+            };
+            for (const Token::Token &tok : tokens)
+                inst.args.push_back(tok);
+            scope_stack.back()->instructions.push_back(inst);
+            break;
+        }
+        case Token::KEYW_ENDIF:
+        {
+            Instruction inst = {
+                .type = Token::KEYW_ENDIF,
                 .args = {},
             };
             for (const Token::Token &tok : tokens)

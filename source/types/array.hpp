@@ -28,6 +28,15 @@ public:
         std::copy(list.begin(), list.end(), data);
     }
 
+    Array(const std::vector<T> &list)
+    {
+        size = list.size();
+        if (!size)
+            return;
+        data = new T[size];
+        std::copy(list.begin(), list.end(), data);
+    }
+
     ~Array()
     {
         if (size && data)

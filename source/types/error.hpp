@@ -11,4 +11,7 @@ enum Error
     SYNTAX = 4,
     ASSERTION = 5,
     EARLY_RETURN = 6,
+    SKIP_TO_IF = 7,
+    EXE_UPTO_IF = 8,
+    SKIP_TO_END = 9,
 };

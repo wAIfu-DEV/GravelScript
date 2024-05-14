@@ -1,3 +1,4 @@
+
 // Import standard lib as std
 // import "std", std;
 
@@ -39,6 +40,19 @@ func RecursionTest;
     call RecursionTest;
 end;
 
+func Fibonacci, t1, t2, next;
+    if Lesser, next, t1; // Only happens at integer overflow
+        return;
+    endif;
+
+    call Print, next;
+    set t1, t2;
+    set t2, next;
+    call AddI, t1, t2;
+
+    call Fibonacci, t1, t2, retVal;
+end;
+
 // Main function
 func Main;
     const TEST_VAR, 0;
@@ -62,6 +76,8 @@ func Main;
     call Print, retVal;
     call imported.FuncFromOtherFile;
     call Print, Program.Nested.nestedMember;
+
+    call Fibonacci, 0, 1, 1;
 
     return;
 

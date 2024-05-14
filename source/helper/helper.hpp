@@ -4,6 +4,13 @@
 #include <map>
 #include <unordered_map>
 
+#if _WIN32
+#include <conio.h>
+#else
+#include <termios.h>
+#include <unistd.h>
+#endif
+
 namespace Helper
 {
     template <typename K, typename V>
@@ -70,5 +77,24 @@ namespace Helper
                 return true;
         }
         return false;
+    }
+
+    int GetUnbufferedChar()
+    {
+#if _WIN32
+        return _getche();
+#else
+        struct termios oldt, newt;
+        tcgetattr(STDIN_FILENO, &oldt);
+        newt = oldt;
+        newt.c_lflag &= ~(ICANON | ECHO);
+        tcsetattr(STDIN_FILENO, TCSANOW, &newt);
+
+        char c;
+        std::cin >> c;
+
+        tcsetattr(STDIN_FILENO, TCSANOW, &oldt);
+        return c;
+#endif
     }
 }

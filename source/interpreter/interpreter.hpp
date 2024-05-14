@@ -50,6 +50,11 @@ namespace Interpreter
         }
     }
 
+    bool IsBoolConvertible(VALUE_TYPE type)
+    {
+        return (type == VALUE_TYPE::INT || type == VALUE_TYPE::NIL || type == VALUE_TYPE::FLOAT);
+    }
+
     Variant ResolveName(Token::Token varname, Scope &parent_scope)
     {
         if (!Helper::StringContains(varname.content, '.'))
@@ -190,6 +195,134 @@ namespace Interpreter
         return Error::OK;
     }
 
+    Error FunctionCall(Instruction inst, Scope &parent_scope, Scope &global_scope)
+    {
+        if (inst.args.size() < 1)
+        {
+            Logger::Error("Syntax Error: not enough arguments for instruction call.", {});
+            return Error::SYNTAX;
+        }
+
+        Token::Token &funcname = inst.args.at(1);
+
+        std::vector<Token::Token> args = {};
+        for (size_t i = 3; i < inst.args.size(); ++i)
+        {
+            if (inst.args[i].type != Token::COMMA)
+                args.push_back(inst.args[i]);
+        }
+
+        Logger::Debug("CALL", {funcname.content});
+
+        if (!Helper::StringContains(funcname.content, '.'))
+        {
+            if (Helper::UnorderedMapHasKey(parent_scope.scopes, funcname.content))
+            {
+                Scope &func = parent_scope.scopes.at(funcname.content);
+                Error arg_err = SetArgumentsBeforeCall(func, args, parent_scope);
+                if (arg_err)
+                    return arg_err;
+                Error exec_err = ExecuteScope(func, global_scope);
+                if (exec_err)
+                    return exec_err;
+                return Error::OK;
+            }
+            else if (Helper::UnorderedMapHasKey(global_scope.scopes, funcname.content))
+            {
+                Scope &func = global_scope.scopes.at(funcname.content);
+
+                if (func.type != SCOPE_TYPE::FUNC)
+                {
+                    Logger::Error("Syntax Error: cannot use 'call' for a scope that isn't a function.", {});
+                    return Error::SYNTAX;
+                }
+
+                Error arg_err = SetArgumentsBeforeCall(func, args, parent_scope);
+                if (arg_err)
+                    return arg_err;
+                Error exec_err = ExecuteScope(func, global_scope);
+                if (exec_err)
+                    return exec_err;
+                return Error::OK;
+            }
+            else if (BuiltinFuncs::IsBuiltIn(funcname.content))
+            {
+                std::vector<Variant> varargs = {};
+                for (Token::Token &tok : args)
+                {
+                    Variant v;
+                    if (tok.type == Token::NAME)
+                    {
+                        v = ResolveName(tok, parent_scope);
+                    }
+                    else
+                    {
+                        Error var_err = MakeVariant(v, {tok});
+                        if (var_err)
+                        {
+                            Logger::Error("Syntax Error: failed to make value from argument to function call", {funcname.content});
+                            return var_err;
+                        }
+                    }
+                    varargs.push_back(v);
+                }
+                bool builtin_error = false;
+                Variant return_val = BuiltinFuncs::CallBuiltIn(funcname.content, varargs, builtin_error);
+                if (builtin_error)
+                    return Error::UNHANDLED;
+                global_scope.vars.insert_or_assign("retVal", return_val);
+                return Error::OK;
+            }
+            Logger::Error("Syntax Error: could not find function", {funcname.content});
+            return Error::SYNTAX;
+        }
+        else
+        {
+            std::vector<std::string> scopes = Helper::SplitString(funcname.content, '.');
+
+            Scope *scope;
+            if (Helper::UnorderedMapHasKey(parent_scope.scopes, scopes.at(0)))
+            {
+                scope = &parent_scope;
+            }
+            else if (Helper::UnorderedMapHasKey(global_scope.scopes, scopes.at(0)))
+            {
+                scope = &global_scope;
+            }
+            else
+            {
+                Logger::Error("Syntax Error: could not find scope", {scopes.at(0)});
+                return Error::SYNTAX;
+            }
+
+            for (std::string &scope_name : scopes)
+            {
+                Logger::Debug("Searching in scope:", {scope_name});
+
+                if (Helper::UnorderedMapHasKey(scope->scopes, scope_name))
+                {
+                    scope = &scope->scopes.at(scope_name);
+                    Logger::Debug("SCOPENAME:", {scope->name});
+                    if (!(scope->type == SCOPE_TYPE::FUNC && scope->name == scopes.back()))
+                    {
+                        continue;
+                    }
+                }
+
+                Error arg_err = SetArgumentsBeforeCall(*scope, args, parent_scope);
+                if (arg_err)
+                    return arg_err;
+                Error exec_err = ExecuteScope(*scope, global_scope);
+                if (exec_err)
+                    return exec_err;
+                return Error::OK;
+            }
+
+            Logger::Error("Syntax Error: failed to find function:", {funcname.content});
+            return Error::SYNTAX;
+        }
+    }
+
     Error ExecuteInstruction(Instruction &inst, Scope &parent_scope, Scope &global_scope)
     {
         Logger::Debug("INST", {inst.args.at(0).content});
@@ -201,7 +334,7 @@ namespace Interpreter
         {
             if (inst.args.size() < 4)
             {
-                Logger::Error("Syntax Error: not enough arguments for instruction set/var/const.", {});
+                Logger::Error("Syntax Error: not enough arguments for instruction 'set/var/const'.", {});
                 return Error::SYNTAX;
             }
 
@@ -366,7 +499,7 @@ namespace Interpreter
         {
             if (inst.args.size() < 2)
             {
-                Logger::Error("Syntax Error: not enough arguments for instruction array.", {});
+                Logger::Error("Syntax Error: not enough arguments for instruction 'array'.", {});
                 return Error::SYNTAX;
             }
 
@@ -419,130 +552,10 @@ namespace Interpreter
         }
         case Token::KEYW_CALL:
         {
-            if (inst.args.size() < 1)
-            {
-                Logger::Error("Syntax Error: not enough arguments for instruction call.", {});
-                return Error::SYNTAX;
-            }
-
-            Token::Token &funcname = inst.args.at(1);
-
-            std::vector<Token::Token> args = {};
-            for (size_t i = 3; i < inst.args.size(); ++i)
-            {
-                if (inst.args[i].type != Token::COMMA)
-                    args.push_back(inst.args[i]);
-            }
-
-            Logger::Debug("CALL", {funcname.content});
-
-            if (!Helper::StringContains(funcname.content, '.'))
-            {
-                if (Helper::UnorderedMapHasKey(parent_scope.scopes, funcname.content))
-                {
-                    Scope &func = parent_scope.scopes.at(funcname.content);
-                    Error arg_err = SetArgumentsBeforeCall(func, args, parent_scope);
-                    if (arg_err)
-                        return arg_err;
-                    Error exec_err = ExecuteScope(func, global_scope);
-                    if (exec_err)
-                        return exec_err;
-                    return Error::OK;
-                }
-                else if (Helper::UnorderedMapHasKey(global_scope.scopes, funcname.content))
-                {
-                    Scope &func = global_scope.scopes.at(funcname.content);
-
-                    if (func.type != SCOPE_TYPE::FUNC)
-                    {
-                        Logger::Error("Syntax Error: cannot use 'call' for a scope that isn't a function.", {});
-                        return Error::SYNTAX;
-                    }
-
-                    Error arg_err = SetArgumentsBeforeCall(func, args, parent_scope);
-                    if (arg_err)
-                        return arg_err;
-                    Error exec_err = ExecuteScope(func, global_scope);
-                    if (exec_err)
-                        return exec_err;
-                    return Error::OK;
-                }
-                else if (BuiltinFuncs::IsBuiltIn(funcname.content))
-                {
-                    std::vector<Variant> varargs = {};
-                    for (Token::Token &tok : args)
-                    {
-                        Variant v;
-                        if (tok.type == Token::NAME)
-                        {
-                            v = ResolveName(tok, parent_scope);
-                        }
-                        else
-                        {
-                            Error var_err = MakeVariant(v, {tok});
-                            if (var_err)
-                            {
-                                Logger::Error("Syntax Error: failed to make value from argument to function call", {funcname.content});
-                                return var_err;
-                            }
-                        }
-                        varargs.push_back(v);
-                    }
-                    bool builtin_error = false;
-                    Variant return_val = BuiltinFuncs::CallBuiltIn(funcname.content, varargs, builtin_error);
-                    if (builtin_error)
-                        return Error::UNHANDLED;
-                    global_scope.vars.insert_or_assign("retVal", return_val);
-                    return Error::OK;
-                }
-                Logger::Error("Syntax Error: could not find function", {funcname.content});
-                return Error::SYNTAX;
-            }
-            else
-            {
-                std::vector<std::string> scopes = Helper::SplitString(funcname.content, '.');
-
-                Scope *scope;
-                if (Helper::UnorderedMapHasKey(parent_scope.scopes, scopes.at(0)))
-                {
-                    scope = &parent_scope;
-                }
-                else if (Helper::UnorderedMapHasKey(global_scope.scopes, scopes.at(0)))
-                {
-                    scope = &global_scope;
-                }
-                else
-                {
-                    Logger::Error("Syntax Error: could not find scope", {scopes.at(0)});
-                    return Error::SYNTAX;
-                }
-
-                for (std::string &scope_name : scopes)
-                {
-                    Logger::Debug("Searching in scope:", {scope_name});
-
-                    if (Helper::UnorderedMapHasKey(scope->scopes, scope_name))
-                    {
-                        scope = &scope->scopes.at(scope_name);
-                        Logger::Debug("SCOPENAME:", {scope->name});
-                        if (!(scope->type == SCOPE_TYPE::FUNC && scope->name == scopes.back()))
-                        {
-                            continue;
-                        }
-                    }
-
-                    Error arg_err = SetArgumentsBeforeCall(*scope, args, parent_scope);
-                    if (arg_err)
-                        return arg_err;
-                    Error exec_err = ExecuteScope(*scope, global_scope);
-                    if (exec_err)
-                        return exec_err;
-                    return Error::OK;
-                }
-
-                Logger::Error("Syntax Error: failed to find function:", {funcname.content});
-                return Error::SYNTAX;
-            }
+            Error call_err = FunctionCall(inst, parent_scope, global_scope);
+            if (call_err)
+                return call_err;
+            return Error::OK;
         }
         case Token::KEYW_IMPORT:
         {
@@ -550,7 +563,7 @@ namespace Interpreter
 
             if (inst.args.size() < 4)
             {
-                Logger::Error("Syntax Error: not enough arguments for instruction import.", {});
+                Logger::Error("Syntax Error: not enough arguments for instruction 'import'.", {});
                 return Error::SYNTAX;
             }
 
@@ -637,6 +650,71 @@ namespace Interpreter
             global_scope.vars.insert_or_assign("retVal", v);
             return Error::EARLY_RETURN;
         }
+        case Token::KEYW_ELIF:
+        case Token::KEYW_IF:
+        {
+            if (inst.args.size() < 2)
+            {
+                Logger::Error("Syntax Error: not enough arguments for instruction 'if/elif'.", {});
+                return Error::SYNTAX;
+            }
+
+            Token::Token compare_func = inst.args.at(1);
+            Token::Token func_tok = Token::Token{
+                .content = "func",
+                .type = Token::KEYW_FUNC,
+            };
+            Instruction temp_func_inst = Instruction{
+                .type = Token::KEYW_FUNC,
+                .args = {func_tok},
+            };
+            for (size_t i = 1; i < inst.args.size(); ++i)
+            {
+                temp_func_inst.args.push_back(inst.args.at(i));
+            }
+            Error call_err = FunctionCall(temp_func_inst, parent_scope, global_scope);
+            if (call_err)
+                return call_err;
+            Variant return_val = global_scope.vars.at("retVal");
+
+            if (!IsBoolConvertible(return_val.type))
+            {
+                Logger::Error("Syntax Error: Function used in 'if' instruction must return a type convertible to boolean expression (int, float, null).", {});
+                return Error::SYNTAX;
+            }
+
+            bool boolean_val;
+            switch (return_val.type)
+            {
+            case VALUE_TYPE::INT:
+                boolean_val = std::bit_cast<int64_t>(return_val.d64) != 0LL;
+                break;
+            case VALUE_TYPE::FLOAT:
+                boolean_val = std::bit_cast<double>(return_val.d64) != 0.0;
+                break;
+            case VALUE_TYPE::NIL:
+                boolean_val = false;
+                break;
+            default:
+                boolean_val = false;
+                break;
+            }
+
+            Logger::Debug("IF RESULT:", {std::to_string(boolean_val)});
+
+            if (boolean_val)
+                return Error::EXE_UPTO_IF;
+            else
+                return Error::SKIP_TO_IF;
+        }
+        case Token::KEYW_ELSE:
+        {
+            return Error::OK;
+        }
+        case Token::KEYW_ENDIF:
+        {
+            return Error::OK;
+        }
         default:
             Logger::Error("Syntax Error: Unexpected instruction:", {inst.args.at(0).content});
             return Error::REJECTED;
@@ -645,16 +723,206 @@ namespace Interpreter
         return Error::OK;
     }
 
+    enum class EXEC_BEHAVIOUR
+    {
+        NORMAL,
+        EXEC_UPTO_ELIF,
+        SKIP_TO_ELIF,
+        SKIP_TO_END,
+    };
+
+    struct Behaviour
+    {
+        EXEC_BEHAVIOUR type;
+        size_t from_depth;
+    };
+
+    void PrintBehaviourStack(std::vector<Behaviour> stack)
+    {
+        std::vector<std::string> behavs{};
+        for (auto b : stack)
+        {
+            switch (b.type)
+            {
+            case EXEC_BEHAVIOUR::NORMAL:
+                behavs.push_back("NORMAL");
+                break;
+            case EXEC_BEHAVIOUR::EXEC_UPTO_ELIF:
+                behavs.push_back("EXEC_UPTO_ELIF");
+                break;
+            case EXEC_BEHAVIOUR::SKIP_TO_ELIF:
+                behavs.push_back("SKIP_TO_ELIF");
+                break;
+            case EXEC_BEHAVIOUR::SKIP_TO_END:
+                behavs.push_back("SKIP_TO_END");
+                break;
+            default:
+                break;
+            }
+        }
+        Logger::Debug("BEHAVIOURS:", behavs);
+    }
+
     Error ExecuteScope(Scope &scope, Scope &global_scope)
     {
+        scope.runtime_vars = {
+            .if_depth = 0,
+        };
+
+        std::vector<Behaviour> behaviour_stack{Behaviour{
+            .type = EXEC_BEHAVIOUR::NORMAL,
+            .from_depth = 0,
+        }};
+
         for (size_t i = 0; i < scope.instructions.size(); ++i)
         {
             Instruction &inst = scope.instructions.at(i);
-            Error inst_err = ExecuteInstruction(inst, scope, global_scope);
-            if (inst_err == Error::EARLY_RETURN)
-                return Error::OK;
-            if (inst_err)
-                return inst_err;
+            Behaviour behav = behaviour_stack.back();
+
+            switch (behav.type)
+            {
+            case EXEC_BEHAVIOUR::EXEC_UPTO_ELIF:
+            {
+                if (!inst.args.size())
+                    continue;
+                Token::TYPE inst_type = inst.args.at(0).type;
+
+                if (inst_type == Token::KEYW_IF)
+                    scope.runtime_vars.if_depth += 1;
+
+                if (behav.from_depth == scope.runtime_vars.if_depth && (inst_type == Token::KEYW_ELIF || inst_type == Token::KEYW_ELSE))
+                {
+                    behaviour_stack.pop_back();
+                    behaviour_stack.push_back(Behaviour{
+                        .type = EXEC_BEHAVIOUR::SKIP_TO_END,
+                        .from_depth = scope.runtime_vars.if_depth,
+                    });
+                    PrintBehaviourStack(behaviour_stack);
+                    continue;
+                }
+                else if (behav.from_depth == scope.runtime_vars.if_depth && inst_type == Token::KEYW_ENDIF)
+                {
+                    scope.runtime_vars.if_depth -= 1;
+                    behaviour_stack.pop_back();
+                    PrintBehaviourStack(behaviour_stack);
+                    continue;
+                }
+
+                if (inst_type == Token::KEYW_ENDIF)
+                    scope.runtime_vars.if_depth -= 1;
+            }
+            case EXEC_BEHAVIOUR::SKIP_TO_ELIF:
+            {
+                if (behav.type == EXEC_BEHAVIOUR::SKIP_TO_ELIF)
+                {
+                    if (!inst.args.size())
+                        continue;
+
+                    Token::TYPE inst_type = inst.args.at(0).type;
+                    bool fallthrough = false;
+
+                    if (inst_type == Token::KEYW_IF)
+                        scope.runtime_vars.if_depth += 1;
+
+                    if (behav.from_depth == scope.runtime_vars.if_depth && (inst_type == Token::KEYW_ELIF || inst_type == Token::KEYW_ELSE))
+                    {
+                        behaviour_stack.pop_back();
+                        behaviour_stack.push_back(Behaviour{
+                            .type = EXEC_BEHAVIOUR::EXEC_UPTO_ELIF,
+                            .from_depth = scope.runtime_vars.if_depth,
+                        });
+                        PrintBehaviourStack(behaviour_stack);
+                        fallthrough = true;
+                    }
+                    else if (behav.from_depth == scope.runtime_vars.if_depth && inst_type == Token::KEYW_ENDIF)
+                    {
+                        scope.runtime_vars.if_depth -= 1;
+                        behaviour_stack.pop_back();
+                        PrintBehaviourStack(behaviour_stack);
+                        continue;
+                    }
+
+                    if (inst_type == Token::KEYW_ENDIF)
+                        scope.runtime_vars.if_depth -= 1;
+
+                    if (!fallthrough)
+                        continue;
+                }
+            }
+            case EXEC_BEHAVIOUR::NORMAL:
+            {
+                Error inst_err = ExecuteInstruction(inst, scope, global_scope);
+                if (inst_err == Error::EARLY_RETURN)
+                    return Error::OK;
+                if (inst_err == Error::SKIP_TO_IF)
+                {
+                    behaviour_stack.push_back(Behaviour{
+                        .type = EXEC_BEHAVIOUR::SKIP_TO_ELIF,
+                        .from_depth = scope.runtime_vars.if_depth,
+                    });
+                    PrintBehaviourStack(behaviour_stack);
+                    continue;
+                }
+                if (inst_err == Error::SKIP_TO_END)
+                {
+                    behaviour_stack.push_back(Behaviour{
+                        .type = EXEC_BEHAVIOUR::SKIP_TO_END,
+                        .from_depth = scope.runtime_vars.if_depth,
+                    });
+                    PrintBehaviourStack(behaviour_stack);
+                    continue;
+                }
+                if (inst_err == Error::EXE_UPTO_IF)
+                {
+                    if (behav.type == EXEC_BEHAVIOUR::SKIP_TO_ELIF)
+                    {
+                        behaviour_stack.pop_back();
+                        PrintBehaviourStack(behaviour_stack);
+                    }
+                    behaviour_stack.push_back(Behaviour{
+                        .type = EXEC_BEHAVIOUR::EXEC_UPTO_ELIF,
+                        .from_depth = scope.runtime_vars.if_depth,
+                    });
+                    PrintBehaviourStack(behaviour_stack);
+                    continue;
+                }
+                if (inst_err)
+                {
+                    Logger::Debug("SCOPE ERROR:", {std::to_string(inst_err)});
+                    return inst_err;
+                }
+                continue;
+            }
+            case EXEC_BEHAVIOUR::SKIP_TO_END:
+            {
+                if (!inst.args.size())
+                    continue;
+                Token::TYPE inst_type = inst.args.at(0).type;
+
+                if (inst_type == Token::KEYW_IF)
+                    scope.runtime_vars.if_depth += 1;
+
+                if (inst_type == Token::KEYW_ENDIF)
+                {
+                    Logger::Debug("FOUND ENDIF", {});
+                    if (behav.from_depth == scope.runtime_vars.if_depth)
+                    {
+                        behaviour_stack.pop_back();
+                        PrintBehaviourStack(behaviour_stack);
+                    }
+                    else
+                    {
+                        Logger::Debug("NOT SAME DEPTH.", {});
+                    }
+                }
+
+                if (inst_type == Token::KEYW_ENDIF)
+                    scope.runtime_vars.if_depth -= 1;
+                continue;
+            }
+            default:
+                break;
+            }
         }
         return Error::OK;
     }
@@ -700,12 +968,21 @@ namespace Interpreter
             return Error::SYNTAX;
         }
 
-        Variant v{
+        Variant default_retval{
             .type = VALUE_TYPE::NIL,
             .flags = {},
             .d64 = 0,
         };
-        global_scope.vars.insert_or_assign("retVal", v);
+        global_scope.vars.insert_or_assign("retVal", default_retval);
+
+        Variant null{
+            .type = VALUE_TYPE::NIL,
+            .flags = {
+                .is_const = true,
+            },
+            .d64 = 0,
+        };
+        global_scope.vars.insert_or_assign("null", null);
 
         Scope &main = global_scope.scopes.at("Main");
 

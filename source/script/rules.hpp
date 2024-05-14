@@ -24,5 +24,9 @@ namespace GravelRules
         {"import", Token::KEYW_IMPORT},
         {"return", Token::KEYW_RETURN},
         {"end", Token::KEYW_END},
+        {"if", Token::KEYW_IF},
+        {"elif", Token::KEYW_ELIF},
+        {"else", Token::KEYW_ELSE},
+        {"endif", Token::KEYW_ENDIF},
     };
 }

@@ -29,6 +29,10 @@ namespace Token
         KEYW_CONST = 208,
         KEYW_VAR = 209,
         KEYW_ARRAY = 210,
+        KEYW_IF = 211,
+        KEYW_ELIF = 212,
+        KEYW_ELSE = 213,
+        KEYW_ENDIF = 214,
     };
 
     const std::map<TYPE, std::string> TYPE_TO_STR{
@@ -53,6 +57,10 @@ namespace Token
         {KEYW_CONST, "keyword-const"},
         {KEYW_VAR, "keyword-var"},
         {KEYW_ARRAY, "keyword-array"},
+        {KEYW_IF, "keyword-if"},
+        {KEYW_ELIF, "keyword-elif"},
+        {KEYW_ELSE, "keyword-else"},
+        {KEYW_ENDIF, "keyword-endif"},
     };
 
     struct Token

@@ -15,10 +15,16 @@ enum class SCOPE_TYPE : uint8_t
     NAMESPACE,
 };
 
+struct ScopeRuntimeVars
+{
+    size_t if_depth = 0;
+};
+
 struct Scope
 {
     SCOPE_TYPE type;
     Scope *parent;
+    ScopeRuntimeVars runtime_vars;
     std::string name;
     std::vector<std::pair<std::string, Variant>> args;
     std::unordered_map<std::string, Variant> vars;

@@ -33,6 +33,7 @@ namespace Token
         KEYW_ELIF = 212,
         KEYW_ELSE = 213,
         KEYW_ENDIF = 214,
+        KEYW_FETCH = 215,
     };
 
     const std::map<TYPE, std::string> TYPE_TO_STR{
@@ -50,6 +51,7 @@ namespace Token
         {KEYW_CALL, "keyword-call"},
         {KEYW_STRUCT, "keyword-struct"},
         {KEYW_FUNC, "keyword-func"},
+        {KEYW_FETCH, "keyword-func"},
         {KEYW_IMPORT, "keyword-import"},
         {KEYW_RETURN, "keyword-return"},
         {KEYW_END, "keyword-end"},

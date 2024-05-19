@@ -328,6 +328,22 @@ namespace Interpreter
         Logger::Debug("INST", {inst.args.at(0).content});
         switch (inst.type)
         {
+        case Token::KEYW_FETCH:
+        {
+            std::vector<Token::Token> args{};
+            for (size_t i = 2; i < inst.args.size(); ++i)
+            {
+                args.push_back(inst.args[i]);
+            }
+
+            Instruction temp_inst = {
+                .type = Token::KEYW_CALL,
+                .args = args,
+            };
+            Error call_err = FunctionCall(temp_inst, parent_scope, global_scope);
+            if (call_err)
+                return call_err;
+        }
         case Token::KEYW_VAR:
         case Token::KEYW_CONST:
         case Token::KEYW_SET:
@@ -346,7 +362,12 @@ namespace Interpreter
             bool create_new = inst.type != Token::KEYW_SET;
 
             Variant var_val{};
-            if (value.type == Token::NAME)
+
+            if (inst.type == Token::KEYW_FETCH)
+            {
+                var_val = global_scope.vars.at("retVal");
+            }
+            else if (value.type == Token::NAME)
             {
                 var_val = ResolveName(value, parent_scope);
             }

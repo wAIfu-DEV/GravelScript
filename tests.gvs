@@ -1,0 +1,61 @@
+func Main;
+    call ValueTests;
+    call ArrayTests;
+end;
+
+func ValueTests;
+    var t0, 0;
+    if NotEquals, t0, 0;
+        call Panic, "FAILED: t0 == 0";
+    endif;
+
+    var t1, 1;
+    if NotEquals, t1, 1;
+        call Panic, "FAILED: t1 == 1";
+    endif;
+
+    var t2, 0;
+    set t2, 2;
+    if NotEquals, t2, 2;
+        call Panic, "FAILED: t2 == 2";
+    endif;
+
+    var t3, 0;
+    fetch t3, AddI, t2, 1;
+    if NotEquals, t3, 3;
+        call Panic, "FAILED: t3 == 3";
+    endif;
+
+    var t4, null;
+    if NotEquals, t4, null;
+        call Panic, "FAILED: t4 == null";
+    endif;
+
+    var t5, null;
+    if NotEquals, t5, 0;
+        call Panic, "FAILED: t5 == 0";
+    endif;
+
+    var t6, -6;
+    if NotEquals, t6, -6;
+        call Panic, "FAILED: t6 == -6";
+    endif;
+
+    call Print, "Passed Values Test.";
+end;
+
+func ArrayTests;
+    array t7, 3;
+
+    fetch t8, Len, t7;
+    if NotEquals, t8, 1;
+        call Panic, "FAILED: t8 == 1";
+    endif;
+
+    fetch t9, At, t7, 0;
+    if NotEquals, t9, 3;
+        call Panic, "FAILED: t9 == 3";
+    endif;
+
+    call Print, "Passed Array Test.";
+end;

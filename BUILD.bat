@@ -16,6 +16,7 @@ ECHO Testing build . . .
 
 @ECHO ON
 
+%ROOT_PATH%/%DIST_WIN%/gvs.exe "tests.gvs"
 %ROOT_PATH%/%DIST_WIN%/gvs.exe "syntax.gvs"
 
 PAUSE

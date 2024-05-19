@@ -28,5 +28,6 @@ namespace GravelRules
         {"elif", Token::KEYW_ELIF},
         {"else", Token::KEYW_ELSE},
         {"endif", Token::KEYW_ENDIF},
+        {"fetch", Token::KEYW_FETCH},
     };
 }

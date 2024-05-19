@@ -1,4 +1,3 @@
-
 // Import standard lib as std
 // import "std", std;
 
@@ -9,6 +8,7 @@ const HELLO, "Hello, World!";
 
 array myArray, 0, 1, 2, 3;
 
+// TODO: Not implemented yet
 //struct MyStruct;
 //    var structMember, 0;
 //end;
@@ -35,11 +35,6 @@ namespace Program;
     end;
 end;
 
-func RecursionTest;
-    call Print, "RECURSION";
-    call RecursionTest;
-end;
-
 func Fibonacci, t1, t2, next;
     if Lesser, next, t1; // Only happens at integer overflow
         return;
@@ -48,13 +43,20 @@ func Fibonacci, t1, t2, next;
     call Print, next;
     set t1, t2;
     set t2, next;
-    call AddI, t1, t2;
+    fetch newNext, AddI, t1, t2;
 
-    call Fibonacci, t1, t2, retVal;
+    call Fibonacci, t1, t2, newNext;
 end;
 
 // Main function
 func Main;
+    fetch item, At, myArray, 2;
+    call Print, item;
+
+    fetch chr, At, HELLO, 7;
+    fetch chrAsStr, StrFromChar, chr;
+    call Print, chr, chrAsStr;
+
     const TEST_VAR, 0;
     set Program.changeMe, "NEW VALUE";
     set Program.Nested.nestedMember, "lmao";
@@ -66,10 +68,9 @@ func Main;
 
     // retVal refers to the return value of the latest function call
     // defaults to null if no return statement in function
-
-    call Add, myInt, myFlt, 25; // 50 + 40.5 + 25
-    call Mul, retVal, 2.0; // 115.5 * 2.0
-    call Print, retVal;
+    fetch sum, Add, myInt, myFlt, 25; // var sum = Add(myInt, myFlt, 25)
+    fetch result, Mul, sum, 2.0;      // var result = 115.5 * 2.0
+    call Print, result;
 
     // set HELLO, "causes error since is const";
     call Program.MyMain, 0, HELLO, 0;
@@ -82,5 +83,4 @@ func Main;
     return;
 
     call Print, "won\'t happen";
-    // call RecursionTest;
 end;

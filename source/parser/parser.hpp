@@ -244,6 +244,22 @@ namespace Parser
             }
             break;
         }
+        case Token::KEYW_FETCH:
+        {
+            if (inst_size < 3)
+            {
+                Logger::Error("Syntax Error: 'fetch' instruction requires at least 2 arguments.", {});
+                return Error::SYNTAX;
+            }
+            Instruction inst = {
+                .type = Token::KEYW_FETCH,
+                .args = {},
+            };
+            for (const Token::Token &tok : tokens)
+                inst.args.push_back(tok);
+            scope_stack.back()->instructions.push_back(inst);
+            break;
+        }
         case Token::KEYW_IMPORT:
         {
             if (inst_size < 3)

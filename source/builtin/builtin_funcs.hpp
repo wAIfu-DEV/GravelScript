@@ -9,6 +9,8 @@
 #include "../helper/helper.hpp"
 #include "../types/variant.hpp"
 
+#include "../make_variant/get_variant.hpp"
+
 namespace BuiltinFuncs
 {
     Variant AddI(std::vector<Variant> args, bool &errored)
@@ -16,23 +18,23 @@ namespace BuiltinFuncs
         Variant ret{
             .type = VALUE_TYPE::NIL,
             .flags = {},
-            .d64 = 0,
+            .d64 = 0ULL,
         };
 
-        int64_t result = 0;
+        VarInt result = 0LL;
 
         for (auto v : args)
         {
             switch (v.type)
             {
             case VALUE_TYPE::INT:
-                result += std::bit_cast<int64_t>(v.d64);
+                result += VarGetInt(v);
                 break;
             case VALUE_TYPE::FLOAT:
-                result += static_cast<int64_t>(round(std::bit_cast<double>(v.d64)));
+                result += static_cast<VarInt>(round(VarGetFloat(v)));
                 break;
             default:
-                Logger::Error("AddInt only takes arguments of type int or float.", {});
+                Logger::Error("Type Error: AddI only takes arguments of type int or float.", {});
                 errored = true;
                 return ret;
             }
@@ -48,23 +50,23 @@ namespace BuiltinFuncs
         Variant ret{
             .type = VALUE_TYPE::NIL,
             .flags = {},
-            .d64 = 0,
+            .d64 = 0ULL,
         };
 
-        double result = 0.0;
+        VarFloat result = 0.0;
 
         for (auto v : args)
         {
             switch (v.type)
             {
             case VALUE_TYPE::INT:
-                result += std::bit_cast<int64_t>(v.d64);
+                result += static_cast<VarFloat>(VarGetInt(v));
                 break;
             case VALUE_TYPE::FLOAT:
-                result += std::bit_cast<double>(v.d64);
+                result += VarGetFloat(v);
                 break;
             default:
-                Logger::Error("AddFloat only takes arguments of type int or float.", {});
+                Logger::Error("Type Error: AddF only takes arguments of type int or float.", {});
                 errored = true;
                 return ret;
             }
@@ -85,10 +87,10 @@ namespace BuiltinFuncs
         Variant ret{
             .type = VALUE_TYPE::NIL,
             .flags = {},
-            .d64 = 0,
+            .d64 = 0ULL,
         };
 
-        int64_t result = 0;
+        VarInt result = 0LL;
         bool first = true;
 
         for (auto v : args)
@@ -98,21 +100,21 @@ namespace BuiltinFuncs
             case VALUE_TYPE::INT:
                 if (first)
                 {
-                    result = std::bit_cast<int64_t>(v.d64);
+                    result = VarGetInt(v);
                     break;
                 }
-                result = result * std::bit_cast<int64_t>(v.d64);
+                result = result * VarGetInt(v);
                 break;
             case VALUE_TYPE::FLOAT:
                 if (first)
                 {
-                    result = std::bit_cast<double>(v.d64);
+                    result = VarGetFloat(v);
                     break;
                 }
-                result = static_cast<int64_t>(round(static_cast<double>(result) * std::bit_cast<double>(v.d64)));
+                result = static_cast<VarInt>(round(static_cast<VarFloat>(result) * VarGetFloat(v)));
                 break;
             default:
-                Logger::Error("MultiplyInt only takes arguments of type int or float.", {});
+                Logger::Error("Type Error: MulI only takes arguments of type int or float.", {});
                 errored = true;
                 return ret;
             }
@@ -129,10 +131,10 @@ namespace BuiltinFuncs
         Variant ret{
             .type = VALUE_TYPE::NIL,
             .flags = {},
-            .d64 = 0,
+            .d64 = 0ULL,
         };
 
-        double result = 0.0;
+        VarFloat result = 0.0;
         bool first = true;
 
         for (auto v : args)
@@ -142,21 +144,21 @@ namespace BuiltinFuncs
             case VALUE_TYPE::INT:
                 if (first)
                 {
-                    result = std::bit_cast<int64_t>(v.d64);
+                    result = static_cast<VarFloat>(VarGetInt(v));
                     break;
                 }
-                result = result * std::bit_cast<int64_t>(v.d64);
+                result = result * static_cast<VarFloat>(VarGetInt(v));
                 break;
             case VALUE_TYPE::FLOAT:
                 if (first)
                 {
-                    result = std::bit_cast<double>(v.d64);
+                    result = VarGetFloat(v);
                     break;
                 }
-                result = result * std::bit_cast<double>(v.d64);
+                result = result * VarGetFloat(v);
                 break;
             default:
-                Logger::Error("AddFloat only takes arguments of type int or float.", {});
+                Logger::Error("Type Error: MulF only takes arguments of type int or float.", {});
                 errored = true;
                 return ret;
             }
@@ -199,10 +201,10 @@ namespace BuiltinFuncs
         case VALUE_TYPE::STRING:
             return arg0;
         case VALUE_TYPE::INT:
-            s = std::to_string(std::bit_cast<int64_t>(arg0.d64));
+            s = std::to_string(VarGetInt(arg0));
             break;
         case VALUE_TYPE::FLOAT:
-            s = std::to_string(std::bit_cast<double>(arg0.d64));
+            s = std::to_string(VarGetFloat(arg0));
             break;
         case VALUE_TYPE::NIL:
             s = "null";
@@ -235,7 +237,7 @@ namespace BuiltinFuncs
             Variant as_str = BuiltinFuncs::ToString({arg}, errored);
             if (errored)
                 return ret;
-            std::cout << Memory::strings.at(as_str.d64);
+            std::cout << VarGetString(as_str);
         }
 
         std::string input;
@@ -284,7 +286,7 @@ namespace BuiltinFuncs
         Variant arg0 = args.at(0);
         if (arg0.type != VALUE_TYPE::INT)
         {
-            Logger::Error("Syntax Error: StrFromChar function 1 argument of type int.", {});
+            Logger::Error("Type Error: StrFromChar function 1 argument of type int.", {});
             errored = true;
             return ret;
         }
@@ -319,19 +321,60 @@ namespace BuiltinFuncs
 
             if (arg.type == VALUE_TYPE::STRING)
             {
-                std::cout << Memory::strings.at(arg.d64);
+                std::cout << VarGetString(arg);
             }
             else
             {
                 Variant as_str = BuiltinFuncs::ToString({arg}, errored);
                 if (errored)
                     return ret;
-                std::cout << Memory::strings.at(as_str.d64);
+                std::cout << VarGetString(as_str);
             }
             first = false;
         }
 
         std::cout << "\n";
+        return ret;
+    }
+
+    Variant Panic(std::vector<Variant> args, bool &errored)
+    {
+        Variant ret{
+            .type = VALUE_TYPE::NIL,
+            .flags = {},
+            .d64 = 0,
+        };
+
+        if (args.size() < 1)
+        {
+            Logger::Error("Syntax Error: Panic function takes at least 1 argument.", {});
+            errored = true;
+            return ret;
+        }
+
+        bool first = true;
+
+        for (auto arg : args)
+        {
+            if (!first)
+                std::cerr << " ";
+
+            if (arg.type == VALUE_TYPE::STRING)
+            {
+                std::cerr << VarGetString(arg);
+            }
+            else
+            {
+                Variant as_str = BuiltinFuncs::ToString({arg}, errored);
+                if (errored)
+                    return ret;
+                std::cerr << VarGetString(as_str);
+            }
+            first = false;
+        }
+
+        std::cerr << "\n";
+        errored = true;
         return ret;
     }
 
@@ -361,126 +404,233 @@ namespace BuiltinFuncs
             {
                 return ret;
             }
-            std::string str0 = Memory::strings.at(arg0.d64);
-            std::string str1 = Memory::strings.at(arg1.d64);
+            std::string str0 = VarGetString(arg0);
+            std::string str1 = VarGetString(arg1);
 
-            if (str0 != str1)
+            if (str0 == str1)
+            {
+                ret.d64 = 1LL;
                 return ret;
-            ret.d64 = 1LL;
+            }
             return ret;
         }
         case VALUE_TYPE::INT:
         {
-            if (arg1.type != VALUE_TYPE::INT && arg1.type != VALUE_TYPE::FLOAT && arg1.type != VALUE_TYPE::NIL)
+            switch (arg1.type)
             {
-                return ret;
-            }
-
-            if (arg1.type == VALUE_TYPE::NIL)
-            {
-                if (std::bit_cast<int64_t>(arg0.d64) != 0)
+            case VALUE_TYPE::NIL:
+                if (VarGetInt(arg0) == 0LL)
                 {
+                    ret.d64 = 1LL;
                     return ret;
                 }
-                ret.d64 = 1LL;
                 return ret;
-            }
-
-            if (arg1.type == VALUE_TYPE::INT)
-            {
-                if (std::bit_cast<int64_t>(arg0.d64) != std::bit_cast<int64_t>(arg1.d64))
+            case VALUE_TYPE::INT:
+                if (VarGetInt(arg0) == VarGetInt(arg1))
                 {
+                    ret.d64 = 1LL;
                     return ret;
                 }
-                ret.d64 = 1LL;
                 return ret;
-            }
-
-            if (arg1.type == VALUE_TYPE::FLOAT)
-            {
-                if (std::bit_cast<int64_t>(arg0.d64) != std::bit_cast<double>(arg1.d64))
+            case VALUE_TYPE::FLOAT:
+                if (VarGetInt(arg0) == VarGetFloat(arg1))
                 {
+                    ret.d64 = 1LL;
                     return ret;
                 }
-                ret.d64 = 1LL;
+                return ret;
+            default:
                 return ret;
             }
             return ret;
         }
         case VALUE_TYPE::FLOAT:
         {
-            if (arg1.type != VALUE_TYPE::INT && arg1.type != VALUE_TYPE::FLOAT && arg1.type != VALUE_TYPE::NIL)
+            switch (arg1.type)
             {
-                return ret;
-            }
-
-            if (arg1.type == VALUE_TYPE::NIL)
-            {
-                if (std::bit_cast<double>(arg0.d64) != 0)
+            case VALUE_TYPE::NIL:
+                if (VarGetFloat(arg0) == 0.0)
                 {
+                    ret.d64 = 1LL;
                     return ret;
                 }
-                ret.d64 = 1LL;
                 return ret;
-            }
-
-            if (arg1.type == VALUE_TYPE::INT)
-            {
-                if (std::bit_cast<double>(arg0.d64) != std::bit_cast<int64_t>(arg1.d64))
+            case VALUE_TYPE::INT:
+                if (VarGetFloat(arg0) == VarGetInt(arg1))
                 {
+                    ret.d64 = 1LL;
                     return ret;
                 }
-                ret.d64 = 1LL;
                 return ret;
-            }
-
-            if (arg1.type == VALUE_TYPE::FLOAT)
-            {
-                if (std::bit_cast<double>(arg0.d64) != std::bit_cast<double>(arg1.d64))
+            case VALUE_TYPE::FLOAT:
+                if (VarGetFloat(arg0) == VarGetFloat(arg1))
                 {
+                    ret.d64 = 1LL;
                     return ret;
                 }
-                ret.d64 = 1LL;
+                return ret;
+            default:
                 return ret;
             }
             return ret;
         }
         case VALUE_TYPE::NIL:
         {
-            if (arg1.type != VALUE_TYPE::INT && arg1.type != VALUE_TYPE::FLOAT && arg1.type != VALUE_TYPE::NIL)
+            switch (arg1.type)
             {
-                return ret;
-            }
-
-            if (arg1.type == VALUE_TYPE::NIL)
-            {
+            case VALUE_TYPE::NIL:
                 ret.d64 = 1LL;
                 return ret;
-            }
-
-            if (arg1.type == VALUE_TYPE::INT)
-            {
-                if (0LL != std::bit_cast<int64_t>(arg1.d64))
+            case VALUE_TYPE::INT:
+                if (0LL == VarGetInt(arg1))
                 {
+                    ret.d64 = 1LL;
                     return ret;
                 }
-                ret.d64 = 1LL;
                 return ret;
-            }
-
-            if (arg1.type == VALUE_TYPE::FLOAT)
-            {
-                if (0.0 != std::bit_cast<double>(arg1.d64))
+            case VALUE_TYPE::FLOAT:
+                if (0.0 == VarGetFloat(arg1))
                 {
+                    ret.d64 = 1LL;
                     return ret;
                 }
-                ret.d64 = 1LL;
+                return ret;
+            default:
                 return ret;
             }
             return ret;
         }
         default:
-            Logger::Error("Syntax Error: Equals function only handles strings, ints, floats or null.", {});
+            Logger::Error("Type Error: Equals function only handles strings, ints, floats or null.", {});
+            errored = true;
+            return ret;
+        }
+    }
+
+    Variant NotEquals(std::vector<Variant> args, bool &errored)
+    {
+        Variant ret{
+            .type = VALUE_TYPE::INT,
+            .flags = {},
+            .d64 = 0,
+        };
+
+        if (args.size() < 2)
+        {
+            Logger::Error("Syntax Error: NotEquals function takes 2 arguments.", {});
+            errored = true;
+            return ret;
+        }
+
+        Variant arg0 = args.at(0);
+        Variant arg1 = args.at(1);
+
+        switch (arg0.type)
+        {
+        case VALUE_TYPE::STRING:
+        {
+            if (arg1.type != VALUE_TYPE::STRING)
+            {
+                return ret;
+            }
+            std::string str0 = VarGetString(arg0);
+            std::string str1 = VarGetString(arg1);
+
+            if (str0 != str1)
+            {
+                ret.d64 = 1LL;
+                return ret;
+            }
+            return ret;
+        }
+        case VALUE_TYPE::INT:
+        {
+            switch (arg1.type)
+            {
+            case VALUE_TYPE::NIL:
+                if (VarGetInt(arg0) != 0LL)
+                {
+                    ret.d64 = 1LL;
+                    return ret;
+                }
+                return ret;
+            case VALUE_TYPE::INT:
+                if (VarGetInt(arg0) != VarGetInt(arg1))
+                {
+                    ret.d64 = 1LL;
+                    return ret;
+                }
+                return ret;
+            case VALUE_TYPE::FLOAT:
+                if (VarGetInt(arg0) != VarGetFloat(arg1))
+                {
+                    ret.d64 = 1LL;
+                    return ret;
+                }
+                return ret;
+            default:
+                return ret;
+            }
+            return ret;
+        }
+        case VALUE_TYPE::FLOAT:
+        {
+            switch (arg1.type)
+            {
+            case VALUE_TYPE::NIL:
+                if (VarGetFloat(arg0) != 0.0)
+                {
+                    ret.d64 = 1LL;
+                    return ret;
+                }
+                return ret;
+            case VALUE_TYPE::INT:
+                if (VarGetFloat(arg0) != VarGetInt(arg1))
+                {
+                    ret.d64 = 1LL;
+                    return ret;
+                }
+                return ret;
+            case VALUE_TYPE::FLOAT:
+                if (VarGetFloat(arg0) != VarGetFloat(arg1))
+                {
+                    ret.d64 = 1LL;
+                    return ret;
+                }
+                return ret;
+            default:
+                return ret;
+            }
+            return ret;
+        }
+        case VALUE_TYPE::NIL:
+        {
+            switch (arg1.type)
+            {
+            case VALUE_TYPE::NIL:
+                ret.d64 = 0LL;
+                return ret;
+            case VALUE_TYPE::INT:
+                if (0LL != VarGetInt(arg1))
+                {
+                    ret.d64 = 1LL;
+                    return ret;
+                }
+                return ret;
+            case VALUE_TYPE::FLOAT:
+                if (0.0 != VarGetFloat(arg1))
+                {
+                    ret.d64 = 1LL;
+                    return ret;
+                }
+                return ret;
+            default:
+                return ret;
+            }
+            return ret;
+        }
+        default:
+            Logger::Error("Type Error: NotEquals function only handles strings, ints, floats or null.", {});
             errored = true;
             return ret;
         }
@@ -508,115 +658,91 @@ namespace BuiltinFuncs
         {
         case VALUE_TYPE::INT:
         {
-            if (arg1.type != VALUE_TYPE::INT && arg1.type != VALUE_TYPE::FLOAT && arg1.type != VALUE_TYPE::NIL)
+            switch (arg1.type)
             {
-                return ret;
-            }
-
-            if (arg1.type == VALUE_TYPE::NIL)
-            {
-                if (std::bit_cast<int64_t>(arg0.d64) <= 0)
+            case VALUE_TYPE::NIL:
+                if (VarGetInt(arg0) > 0)
                 {
+                    ret.d64 = 1LL;
                     return ret;
                 }
-                ret.d64 = 1LL;
                 return ret;
-            }
-
-            if (arg1.type == VALUE_TYPE::INT)
-            {
-                if (std::bit_cast<int64_t>(arg0.d64) <= std::bit_cast<int64_t>(arg1.d64))
+            case VALUE_TYPE::INT:
+                if (VarGetInt(arg0) > VarGetInt(arg1))
                 {
+                    ret.d64 = 1LL;
                     return ret;
                 }
-                ret.d64 = 1LL;
                 return ret;
-            }
-
-            if (arg1.type == VALUE_TYPE::FLOAT)
-            {
-                if (std::bit_cast<int64_t>(arg0.d64) <= std::bit_cast<double>(arg1.d64))
+            case VALUE_TYPE::FLOAT:
+                if (VarGetInt(arg0) > VarGetFloat(arg1))
                 {
+                    ret.d64 = 1LL;
                     return ret;
                 }
-                ret.d64 = 1LL;
                 return ret;
+            default:
+                break;
             }
             return ret;
         }
         case VALUE_TYPE::FLOAT:
         {
-            if (arg1.type != VALUE_TYPE::INT && arg1.type != VALUE_TYPE::FLOAT && arg1.type != VALUE_TYPE::NIL)
+            switch (arg1.type)
             {
-                return ret;
-            }
-
-            if (arg1.type == VALUE_TYPE::NIL)
-            {
-                if (std::bit_cast<double>(arg0.d64) <= 0)
+            case VALUE_TYPE::NIL:
+                if (VarGetFloat(arg0) > 0)
                 {
+                    ret.d64 = 1LL;
                     return ret;
                 }
-                ret.d64 = 1LL;
                 return ret;
-            }
-
-            if (arg1.type == VALUE_TYPE::INT)
-            {
-                if (std::bit_cast<double>(arg0.d64) <= std::bit_cast<int64_t>(arg1.d64))
+            case VALUE_TYPE::INT:
+                if (VarGetFloat(arg0) > VarGetInt(arg1))
                 {
+                    ret.d64 = 1LL;
                     return ret;
                 }
-                ret.d64 = 1LL;
                 return ret;
-            }
-
-            if (arg1.type == VALUE_TYPE::FLOAT)
-            {
-                if (std::bit_cast<double>(arg0.d64) <= std::bit_cast<double>(arg1.d64))
+            case VALUE_TYPE::FLOAT:
+                if (VarGetFloat(arg0) > VarGetFloat(arg1))
                 {
+                    ret.d64 = 1LL;
                     return ret;
                 }
-                ret.d64 = 1LL;
+                return ret;
+            default:
                 return ret;
             }
             return ret;
         }
         case VALUE_TYPE::NIL:
         {
-            if (arg1.type != VALUE_TYPE::INT && arg1.type != VALUE_TYPE::FLOAT && arg1.type != VALUE_TYPE::NIL)
+            switch (arg1.type)
             {
+            case VALUE_TYPE::NIL:
                 return ret;
-            }
-
-            if (arg1.type == VALUE_TYPE::NIL)
-            {
-                return ret;
-            }
-
-            if (arg1.type == VALUE_TYPE::INT)
-            {
-                if (0LL <= std::bit_cast<int64_t>(arg1.d64))
+            case VALUE_TYPE::INT:
+                if (0LL > VarGetInt(arg1))
                 {
+                    ret.d64 = 1LL;
                     return ret;
                 }
-                ret.d64 = 1LL;
                 return ret;
-            }
-
-            if (arg1.type == VALUE_TYPE::FLOAT)
-            {
-                if (0.0 <= std::bit_cast<double>(arg1.d64))
+            case VALUE_TYPE::FLOAT:
+                if (0.0 > VarGetFloat(arg1))
                 {
+                    ret.d64 = 1LL;
                     return ret;
                 }
-                ret.d64 = 1LL;
+                return ret;
+            default:
                 return ret;
             }
             return ret;
         }
         default:
-            Logger::Error("Syntax Error: Equals function only handles strings, ints, floats or null.", {});
+            Logger::Error("Type Error: Greater function only handles strings, ints, floats or null.", {});
             errored = true;
             return ret;
         }
@@ -644,122 +770,216 @@ namespace BuiltinFuncs
         {
         case VALUE_TYPE::INT:
         {
-            if (arg1.type != VALUE_TYPE::INT && arg1.type != VALUE_TYPE::FLOAT && arg1.type != VALUE_TYPE::NIL)
+            switch (arg1.type)
             {
-                return ret;
-            }
-
-            if (arg1.type == VALUE_TYPE::NIL)
-            {
-                if (std::bit_cast<int64_t>(arg0.d64) >= 0)
+            case VALUE_TYPE::NIL:
+                if (VarGetInt(arg0) < 0)
                 {
+                    ret.d64 = 1LL;
                     return ret;
                 }
-                ret.d64 = 1LL;
                 return ret;
-            }
-
-            if (arg1.type == VALUE_TYPE::INT)
-            {
-                if (std::bit_cast<int64_t>(arg0.d64) >= std::bit_cast<int64_t>(arg1.d64))
+            case VALUE_TYPE::INT:
+                if (VarGetInt(arg0) < VarGetInt(arg1))
                 {
+                    ret.d64 = 1LL;
                     return ret;
                 }
-                ret.d64 = 1LL;
                 return ret;
-            }
-
-            if (arg1.type == VALUE_TYPE::FLOAT)
-            {
-                if (std::bit_cast<int64_t>(arg0.d64) >= std::bit_cast<double>(arg1.d64))
+            case VALUE_TYPE::FLOAT:
+                if (VarGetInt(arg0) < VarGetFloat(arg1))
                 {
+                    ret.d64 = 1LL;
                     return ret;
                 }
-                ret.d64 = 1LL;
                 return ret;
+            default:
+                break;
             }
             return ret;
         }
         case VALUE_TYPE::FLOAT:
         {
-            if (arg1.type != VALUE_TYPE::INT && arg1.type != VALUE_TYPE::FLOAT && arg1.type != VALUE_TYPE::NIL)
+            switch (arg1.type)
             {
-                return ret;
-            }
-
-            if (arg1.type == VALUE_TYPE::NIL)
-            {
-                if (std::bit_cast<double>(arg0.d64) >= 0)
+            case VALUE_TYPE::NIL:
+                if (VarGetFloat(arg0) < 0)
                 {
+                    ret.d64 = 1LL;
                     return ret;
                 }
-                ret.d64 = 1LL;
                 return ret;
-            }
-
-            if (arg1.type == VALUE_TYPE::INT)
-            {
-                if (std::bit_cast<double>(arg0.d64) >= std::bit_cast<int64_t>(arg1.d64))
+            case VALUE_TYPE::INT:
+                if (VarGetFloat(arg0) < VarGetInt(arg1))
                 {
+                    ret.d64 = 1LL;
                     return ret;
                 }
-                ret.d64 = 1LL;
                 return ret;
-            }
-
-            if (arg1.type == VALUE_TYPE::FLOAT)
-            {
-                if (std::bit_cast<double>(arg0.d64) >= std::bit_cast<double>(arg1.d64))
+            case VALUE_TYPE::FLOAT:
+                if (VarGetFloat(arg0) < VarGetFloat(arg1))
                 {
+                    ret.d64 = 1LL;
                     return ret;
                 }
-                ret.d64 = 1LL;
+                return ret;
+            default:
                 return ret;
             }
             return ret;
         }
         case VALUE_TYPE::NIL:
         {
-            if (arg1.type != VALUE_TYPE::INT && arg1.type != VALUE_TYPE::FLOAT && arg1.type != VALUE_TYPE::NIL)
+            switch (arg1.type)
             {
+            case VALUE_TYPE::NIL:
                 return ret;
-            }
-
-            if (arg1.type == VALUE_TYPE::NIL)
-            {
-                return ret;
-            }
-
-            if (arg1.type == VALUE_TYPE::INT)
-            {
-                if (0LL >= std::bit_cast<int64_t>(arg1.d64))
+            case VALUE_TYPE::INT:
+                if (0LL < VarGetInt(arg1))
                 {
+                    ret.d64 = 1LL;
                     return ret;
                 }
-                ret.d64 = 1LL;
                 return ret;
-            }
-
-            if (arg1.type == VALUE_TYPE::FLOAT)
-            {
-                if (0.0 >= std::bit_cast<double>(arg1.d64))
+            case VALUE_TYPE::FLOAT:
+                if (0.0 < VarGetFloat(arg1))
                 {
+                    ret.d64 = 1LL;
                     return ret;
                 }
-                ret.d64 = 1LL;
+                return ret;
+            default:
                 return ret;
             }
             return ret;
         }
         default:
-            Logger::Error("Syntax Error: Equals function only handles strings, ints, floats or null.", {});
+            Logger::Error("Type Error: Lesser function only handles strings, ints, floats or null.", {});
             errored = true;
             return ret;
         }
     }
 
+    Variant Len(std::vector<Variant> args, bool &errored)
+    {
+        Variant ret{
+            .type = VALUE_TYPE::NIL,
+            .flags = {},
+            .d64 = 0ULL,
+        };
+
+        if (args.size() < 1)
+        {
+            Logger::Error("Syntax Error: 'Len' function takes 1 argument.", {});
+            errored = true;
+            return ret;
+        }
+
+        Variant arg0 = args.at(0);
+
+        if (arg0.type != VALUE_TYPE::ARRAY && arg0.type != VALUE_TYPE::STRING)
+        {
+            Logger::Error("Type Error: Argument 1 of function 'Len' must be of type 'array' or 'string'.", {});
+            errored = true;
+            return ret;
+        }
+
+        size_t size = 0ULL;
+
+        if (arg0.type == VALUE_TYPE::ARRAY)
+        {
+            size = Memory::arrays.at(arg0.d64).size();
+        }
+        else if (arg0.type == VALUE_TYPE::STRING)
+        {
+            size = Memory::strings.at(arg0.d64).length();
+        }
+
+        if (size > static_cast<uint64_t>(INT64_MAX))
+        {
+            size = INT64_MAX;
+        }
+        ret.type = VALUE_TYPE::INT;
+        ret.d64 = static_cast<VarInt>(size);
+        return ret;
+    }
+
+    Variant At(std::vector<Variant> args, bool &errored)
+    {
+        Variant ret{
+            .type = VALUE_TYPE::NIL,
+            .flags = {},
+            .d64 = 0ULL,
+        };
+
+        if (args.size() < 2)
+        {
+            Logger::Error("Syntax Error: 'At' function takes 2 arguments.", {});
+            errored = true;
+            return ret;
+        }
+
+        Variant arg0 = args.at(0);
+        Variant arg1 = args.at(1);
+
+        if (arg0.type != VALUE_TYPE::ARRAY && arg0.type != VALUE_TYPE::STRING)
+        {
+            Logger::Error("Type Error: Argument 1 of function 'At' must be of type 'array' or 'string'.", {});
+            errored = true;
+            return ret;
+        }
+
+        if (arg1.type != VALUE_TYPE::INT)
+        {
+            Logger::Error("Type Error: Argument 2 of function 'At' must be of type 'int'.", {});
+            errored = true;
+            return ret;
+        }
+
+        VarInt i = VarGetInt(arg1);
+
+        if (i < 0)
+        {
+            Logger::Error("Runtime Error: Argument 2 of function 'At' must be a positive integer.", {});
+            errored = true;
+            return ret;
+        }
+
+        if (arg0.type == VALUE_TYPE::ARRAY)
+        {
+            VarArray arr = Memory::arrays.at(arg0.d64);
+
+            if (static_cast<uint64_t>(i) >= arr.size())
+            {
+                Logger::Error("Runtime Error: Tried accessing element outside of array bounds using 'At' function.", {});
+                errored = true;
+                return ret;
+            }
+
+            ret = arr.at(i);
+            return ret;
+        }
+        else if (arg0.type == VALUE_TYPE::STRING)
+        {
+            std::string s = Memory::strings.at(arg0.d64);
+
+            if (static_cast<uint64_t>(i) >= s.length())
+            {
+                Logger::Error("Runtime Error: Tried accessing element outside of string bounds using 'At' function.", {});
+                errored = true;
+                return ret;
+            }
+
+            ret.type = VALUE_TYPE::INT;
+            ret.d64 = static_cast<VarInt>(s.at(i));
+            return ret;
+        }
+        return ret;
+    }
+
     const std::unordered_map<std::string, std::function<Variant(std::vector<Variant> &, bool &)>> BUILTIN_MAP{
         {"Print", Print},
+        {"Panic", Panic},
         {"GetLine", GetLine},
         {"GetChar", GetChar},
         {"ToString", ToString},
@@ -771,8 +991,11 @@ namespace BuiltinFuncs
         {"MulF", MulF},
         {"Mul", Mul},
         {"Equals", Equals},
+        {"NotEquals", NotEquals},
         {"Greater", Greater},
         {"Lesser", Lesser},
+        {"At", At},
+        {"Len", Len},
     };
 
     Variant CallBuiltIn(const std::string name, std::vector<Variant> &args, bool &errored)

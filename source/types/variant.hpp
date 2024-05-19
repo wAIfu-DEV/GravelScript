@@ -35,7 +35,9 @@ struct Variant
     };
 };
 
-typedef std::nullptr_t VarNull;
+typedef double VarFloat;
+typedef int64_t VarInt;
+typedef int64_t VarNull;
 typedef std::string VarString;
 typedef std::vector<Variant> VarArray;
 typedef std::unordered_map<std::string, Variant> VarMap;
